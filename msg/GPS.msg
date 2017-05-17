@@ -1,0 +1,17 @@
+Header header
+int8 num_sat
+int8 fix
+int32 cno
+float64 latitude
+float64 longitude
+float64 altitude
+float32 hMSL
+float32 hAcc
+float32 vAcc
+float32 pDop
+geometry_msgs/Vector3 linear_velocity
+float32 ground_speed_2d
+float32 ground_speed_3d
+float32 sAcc
+float32 course
+float32 cAcc
