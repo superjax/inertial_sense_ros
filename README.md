@@ -34,6 +34,8 @@ catkin_make
 rosrun inertial_sense inertial_sense_node
 ```
 
+For running the node from command line with specific parameter values and topic remapping, refer to the [Remapping Arguments](http://wiki.ros.org/Remapping%20Arguments) page.
+
 ## Parameters
 - `~port` (string, default: "/dev/ttyUSB0")
     - Serial port to connect to
