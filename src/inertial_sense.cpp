@@ -31,7 +31,7 @@ InertialSenseROS::InertialSenseROS() :
   nh_private_.param<int>("sINS_rate", INS_.stream_rate, 100);
   if (INS_.stream_on)
   {
-    INS_.pub = nh_.advertise<nav_msgs::Odometry>("ins1", 1);
+    INS_.pub = nh_.advertise<nav_msgs::Odometry>("ins", 1);
     inertialSenseInterface_.BroadcastBinaryData(DID_INS_1, (int)(1000/INS_.stream_rate), &data_callback);
     inertialSenseInterface_.BroadcastBinaryData(DID_INS_2, (int)(1000/INS_.stream_rate), &data_callback);
     inertialSenseInterface_.BroadcastBinaryData(DID_DUAL_IMU, (int)(1000/INS_.stream_rate), &data_callback);
