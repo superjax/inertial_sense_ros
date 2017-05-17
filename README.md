@@ -34,7 +34,9 @@ catkin_make
 rosrun inertial_sense inertial_sense_node
 ```
 
-For running the node from command line with specific parameter values and topic remapping, refer to the [Remapping Arguments](http://wiki.ros.org/Remapping%20Arguments) page.
+For changing parameter values and topic remapping from the command line using `rosrun` refer to the [Remapping Arguments](http://wiki.ros.org/Remapping%20Arguments) page.
+
+For setting parameters and topic remappings from a launch file, refer to the [Roslaunch for Larger Projects](http://wiki.ros.org/roslaunch/Tutorials/Roslaunch%20tips%20for%20larger%20projects) page.
 
 ## Parameters
 - `~port` (string, default: "/dev/ttyUSB0")
