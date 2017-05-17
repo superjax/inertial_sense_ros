@@ -12,7 +12,7 @@ A ROS wrapper for the InertialSense uINS2 GPS-INS sensor
 - Magnetomter streaming
 - Barometer streaming
 - Coning and Sculling integral streaming
-- Adjusting rate of streaming on-the-fly
+- Adjusting rate of streaming on-the-fly with dynamic reconfigure
 
 ## Installation
 This is a ROS package, with the InertialSenseSDK as a submodule, so just create a catkin workspace, clone this into the `src` folder, pull down the submodule and build
@@ -35,6 +35,12 @@ rosrun inertial_sense inertial_sense_node
 ```
 
 ## Parameters
+- `~port` (string, default: "/dev/ttyUSB0")
+    - Serial port to connect to
+- `~baud` (int, default: 3000000)
+    - baudrate of serial communication 
+- `~frame_id` (string, default "body") 
+    - frame id of all measurements 
 - `~sINS` (bool, default: true)
     - Whether to stream the full 12-DOF odometry measurement
 - `~sINS_rate` (int, default: 100)
