@@ -57,29 +57,11 @@ private:
   nav_msgs::Odometry odom_msg;
   inertial_sense::GPS gps;
 
-//  ros_stream_t mag1_;
-//  void mag1_timer_callback(const ros::TimerEvent&);
-
-//  ros_stream_t mag2_;
-//  void mag2_timer_callback(const ros::TimerEvent&);
-
-//  ros_stream_t baro_;
-//  void baro_timer_callback(const ros::TimerEvent&);
-
-//  ros_stream_t sensors_;
-//  void sensors_timer_callback(const ros::TimerEvent&);
-
-//  ros_stream_t coning_and_sculling_;
-//  void CnS_timer_callback(const ros::TimerEvent&);
-
-
   // Data Struct received from uINS
   uDatasets d_;
 
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
-
-
 
   InertialSense inertialSenseInterface_;
 };
