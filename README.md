@@ -44,10 +44,10 @@ rosrun inertial_sense inertial_sense_node
 
 ## Topics
 - `imu1/`(sensor_msgs/Imu) 
-  - Imu measurements from IMU1 (NED frame)
+    - Imu measurements from IMU1 (NED frame)
 - `imu2/`(sensor_msgs/Imu) 
-  - Imu measurements from IMU2 (NED frame)
+    - Imu measurements from IMU2 (NED frame)
 - `ins/`(nav_msgs/Odometry) 
-  - full 12-DOF measurements from onboard estimator (NED frame)
+    - full 12-DOF measurements from onboard estimator (NED frame)
 - `gps/`(inertial_sense/GPS) 
-  - full GPS measurement from onbaord GPS
+    - full GPS measurement from onbaord GPS
