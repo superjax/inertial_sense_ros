@@ -35,12 +35,18 @@ rosrun inertial_sense inertial_sense_node
 ```
 
 ## Parameters
-- `~sINS`: if true, it will stream the full 12-DOF odometry measurement
-- `~sINS_rate`: The rate of odometry measurement streaming (Hz)
-- `~sIMU`: If true, the node will stream dual IMU measurements
-- `~sIMU_rate`: the rate of IMU measurement streaming (Hz)
-- `~sGPS`: If true, the node will stream GPS measurements
-- `~sGPS_rate`: the rate of GPS message streaming (Hz)
+- `~sINS` (bool, default: true)
+    - Whether to stream the full 12-DOF odometry measurement
+- `~sINS_rate` (int, default: 100)
+    - The rate of odometry measurement streaming (Hz)
+- `~sIMU`(bool, default: true)
+    - Whether to stream IMU measurements
+- `~sIMU_rate`(int, default: 100) 
+    - The rate of IMU measurement streaming (Hz)
+- `~sGPS`(bool, default: true) 
+    - If true, the node will stream GPS measurements
+- `~sGPS_rate`(int, default: 10) 
+    - The rate of GPS message streaming (Hz)
 
 ## Topics
 - `imu1/`(sensor_msgs/Imu) 
