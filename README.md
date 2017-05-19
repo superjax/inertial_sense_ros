@@ -6,13 +6,14 @@ A ROS wrapper for the InertialSense uINS2 GPS-INS sensor
 - INS full odometry streaming
 - Dual IMU streaming
 - Full GPS data streaming
+- Timestamping uses GPS timestamps when available and syncs sensor messages with ROS time if unavailable.
 
 ## ToDo
-- Fix timestamping to use GPS timestamps
+- Flash configuration via parameters
 - Magnetomter streaming
 - Barometer streaming
 - Coning and Sculling integral streaming
-- Adjusting rate of streaming on-the-fly with dynamic reconfigure
+- Adjusting rate of streaming and flash configuration on-the-fly with dynamic reconfigure
 
 ## Installation
 This is a ROS package, with the InertialSenseSDK as a submodule, so just create a catkin workspace, clone this into the `src` folder, pull down the submodule and build
@@ -57,6 +58,10 @@ For setting parameters and topic remappings from a launch file, refer to the [Ro
     - If true, the node will stream GPS measurements
 - `~sGPS_rate`(int, default: 10) 
     - The rate of GPS message streaming (Hz)
+- `~sGPS_info`(bool, default: true) 
+    - If true, the node will stream GPS measurements
+- `~sGPS_info_rate`(int, default: 10) 
+    - The rate of GPS message streaming (Hz)
 
 ## Topics
 - `imu1/`(sensor_msgs/Imu) 
@@ -67,3 +72,5 @@ For setting parameters and topic remappings from a launch file, refer to the [Ro
     - full 12-DOF measurements from onboard estimator (NED frame)
 - `gps/`(inertial_sense/GPS) 
     - full GPS measurement from onbaord GPS
+-`gps/info`(inertial_sense/GPSInfo)
+    - sattelite information and carrier noise ratio array for each sattelite
