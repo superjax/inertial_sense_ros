@@ -72,5 +72,5 @@ For setting parameters and topic remappings from a launch file, refer to the [Ro
     - full 12-DOF measurements from onboard estimator (NED frame)
 - `gps/`(inertial_sense/GPS) 
     - full GPS measurement from onbaord GPS
--`gps/info`(inertial_sense/GPSInfo)
+- `gps/info`(inertial_sense/GPSInfo)
     - sattelite information and carrier noise ratio array for each sattelite
