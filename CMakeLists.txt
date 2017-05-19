@@ -15,7 +15,9 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11 -fms-extensions -O3 -Wl,--n
 
 add_message_files(
   FILES
+  SatInfo.msg
   GPS.msg
+  GPSInfo.msg
 )
 
 generate_messages(

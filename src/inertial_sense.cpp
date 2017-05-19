@@ -6,7 +6,7 @@
 static void data_callback(InertialSense* i, p_data_t* data);
 
 InertialSenseROS::InertialSenseROS() :
-  nh_(), nh_private_("~")
+  nh_(), nh_private_("~"), IMU_offset_(0,0), GPS_to_week_offset_(0)
 {
   nh_private_.param<std::string>("port", port_, "/dev/ttyUSB0");
   nh_private_.param<int>("baudrate", baudrate_, 3000000);
@@ -61,8 +61,17 @@ InertialSenseROS::InertialSenseROS() :
   {
     GPS_.pub = nh_.advertise<inertial_sense::GPS>("gps", 1);
     inertialSenseInterface_.BroadcastBinaryData(DID_GPS, 1000/GPS_.stream_rate, &data_callback);
-
   }
+
+  // Set up the GPS info ROS stream
+  nh_private_.param<bool>("sGPS_info", GPS_info_.stream_on, true);
+  nh_private_.param<int>("sGPS_info_rate", GPS_info_.stream_rate, 10);
+  if (GPS_info_.stream_on)
+  {
+    GPS_info_.pub = nh_.advertise<inertial_sense::GPSInfo>("gps/info", 1);
+    inertialSenseInterface_.BroadcastBinaryData(DID_GPS_RSSI, 1000/GPS_info_.stream_rate, &data_callback);
+  }
+
 
   //  nh_private_.param<bool>("smag1", stream_mag1_, false);
   //  nh_private_.param<int>("smag1_rate", stream_mag1_rate_, 0);
@@ -95,10 +104,9 @@ void InertialSenseROS::INS1_callback()
 
 void InertialSenseROS::INS2_callback()
 {
-  uint64_t seconds = d_.ins2.week*7*24*3600 + floor(d_.ins2.timeOfWeek*7.0*24.0*3600.0);
-  uint64_t nsec = (d_.ins2.timeOfWeek*7.0*24.0*3600.0 - floor(d_.ins2.timeOfWeek*7.0*24.0*3600.0))*1e9;
-  //  odom_msg.header.stamp = ros::Time(seconds, nsec);
-  odom_msg.header.stamp = ros::Time::now();
+  uint64_t seconds = GPS_UTC_OFFSET + d_.ins2.week*7*24*3600 + floor(d_.ins2.timeOfWeek);
+  uint64_t nsec = (d_.ins2.timeOfWeek - floor(d_.ins2.timeOfWeek))*1e9;
+  odom_msg.header.stamp = ros::Time(seconds, nsec);
 
   odom_msg.header.frame_id = frame_id_;
 
@@ -118,9 +126,31 @@ void InertialSenseROS::INS2_callback()
 }
 void InertialSenseROS::IMU_callback()
 {
-  // This needs to be adjusted to ros::Time
-  //  imu1_msg.header.stamp = imu2_msg.header.stamp = ros::Time(d_.dualImu.time);
-  imu1_msg.header.stamp = imu2_msg.header.stamp = ros::Time::now();
+
+  ros::Time imu_time(0, 0);
+  //  If we have a GPS fix, then use it to timestamp IMU messages
+  if (got_GPS_fix_)
+  {
+    uint64_t sec = GPS_UTC_OFFSET + GPS_week_seconds + floor(d_.imu.time + GPS_to_week_offset_);
+    uint64_t nsec = (d_.imu.time + GPS_to_week_offset_ - floor(d_.imu.time + GPS_to_week_offset_))*1e9;
+    imu_time = ros::Time(sec, nsec);
+  }
+  else
+  {
+    uint64_t sec = floor(d_.imu.time);
+    uint64_t nsec = (d_.imu.time - sec)*1e9;
+    imu_time = ros::Time(sec, nsec) + IMU_offset_;
+  }
+
+
+  // Calculate an offset so we can sync IMU messages to GPS until we have a GPS fix
+  if (first_IMU_message_)
+  {
+    first_IMU_message_ = false;
+    IMU_offset_ = ros::Time::now() - imu_time;
+    imu_time += IMU_offset_;
+  }
+  imu1_msg.header.stamp = imu2_msg.header.stamp = imu_time;
   imu1_msg.header.frame_id = imu2_msg.header.frame_id = frame_id_;
 
   imu1_msg.angular_velocity.x = d_.dualImu.I[0].pqr[0];
@@ -147,27 +177,55 @@ void InertialSenseROS::IMU_callback()
 
 void InertialSenseROS::GPS_callback()
 {
-  gps.fix = d_.gps.pos.status & GPS_STATUS_FIX_STATUS_FIX_OK;
-  gps.header.stamp = ros::Time::now();
-  gps.header.frame_id =frame_id_;
-  uint8_t* num_sat = (uint8_t*)&d_.gps.pos.status;
-  gps.num_sat = *num_sat;
-  gps.cno = d_.gps.pos.cno;
-  gps.latitude = d_.gps.pos.lla[0];
-  gps.longitude = d_.gps.pos.lla[1];
-  gps.altitude = d_.gps.pos.lla[2];
-  gps.hMSL = d_.gps.pos.hMSL;
-  gps.hAcc = d_.gps.pos.hAcc;
-  gps.vAcc = d_.gps.pos.vAcc;
-  gps.pDop = d_.gps.pos.pDop;
-  gps.linear_velocity.x = d_.gps.vel.ned[0];
-  gps.linear_velocity.y = d_.gps.vel.ned[1];
-  gps.linear_velocity.z = d_.gps.vel.ned[2];
-  gps.ground_speed_2d = d_.gps.vel.s2D;
-  gps.ground_speed_3d = d_.gps.vel.s3D;
-  gps.course = d_.gps.vel.course;
-  gps.cAcc = d_.gps.vel.cAcc;
-  GPS_.pub.publish(gps);
+  uint64_t seconds = GPS_UTC_OFFSET + d_.gps.pos.week*7*24*3600 + floor(d_.gps.pos.timeOfWeekMs/1e3);
+  uint64_t nsec = (d_.gps.pos.timeOfWeekMs/1e3 - floor(d_.gps.pos.timeOfWeekMs/1e3))*1e9;
+  GPS_week_seconds = d_.gps.pos.week*7*24*3600;
+  gps_msg.header.stamp = ros::Time(seconds, nsec);
+  gps_msg.fix_type = d_.gps.pos.status & GPS_STATUS_FIX_TYPE_MASK;
+  gps_msg.header.frame_id =frame_id_;
+  gps_msg.num_sat = (uint8_t)(d_.gps.pos.status & GPS_STATUS_NUM_SATS_USED_MASK);
+  gps_msg.cno = d_.gps.pos.cno;
+  gps_msg.latitude = d_.gps.pos.lla[0];
+  gps_msg.longitude = d_.gps.pos.lla[1];
+  gps_msg.altitude = d_.gps.pos.lla[2];
+  gps_msg.hMSL = d_.gps.pos.hMSL;
+  gps_msg.hAcc = d_.gps.pos.hAcc;
+  gps_msg.vAcc = d_.gps.pos.vAcc;
+  gps_msg.pDop = d_.gps.pos.pDop;
+  gps_msg.linear_velocity.x = d_.gps.vel.ned[0];
+  gps_msg.linear_velocity.y = d_.gps.vel.ned[1];
+  gps_msg.linear_velocity.z = d_.gps.vel.ned[2];
+  gps_msg.ground_speed_2d = d_.gps.vel.s2D;
+  gps_msg.ground_speed_3d = d_.gps.vel.s3D;
+  gps_msg.course = d_.gps.vel.course;
+  gps_msg.cAcc = d_.gps.vel.cAcc;
+  gps_msg.messages_per_second = d_.gps.rxps;
+  GPS_.pub.publish(gps_msg);
+
+  if (!got_GPS_fix_)
+  {
+    if (d_.gps.pos.status & GPS_STATUS_FIX_TYPE_3D_FIX)
+    {
+      got_GPS_fix_ = true;
+    }
+    GPS_to_week_offset_ = d_.gps.towOffset;
+  }
+}
+
+void InertialSenseROS::GPS_Info_callback()
+{
+  uint64_t seconds = GPS_UTC_OFFSET + GPS_week_seconds + floor(d_.gpsRssi.timeOfWeekMs/1e3);
+  uint64_t nsec = (d_.gpsRssi.timeOfWeekMs - floor(d_.gpsRssi.timeOfWeekMs))*1e6;
+  ROS_INFO("dsec = %d dnsec = %d", ros::Time::now().sec - seconds, ros::Time::now().nsec - nsec);
+  gps_info_msg.header.stamp = ros::Time(seconds, nsec);
+  gps_info_msg.header.frame_id = frame_id_;
+  gps_info_msg.num_sats = d_.gpsRssi.numSats;
+  for (int i = 0; i < 50; i++)
+  {
+    gps_info_msg.sattelite_info[i].sat_id = d_.gpsRssi.info[i].svId;
+    gps_info_msg.sattelite_info[i].cno = d_.gpsRssi.info[i].cno;
+  }
+  GPS_info_.pub.publish(gps_info_msg);
 }
 
 void InertialSenseROS::callback(p_data_t* data)
@@ -188,6 +246,10 @@ void InertialSenseROS::callback(p_data_t* data)
 
   case DID_GPS:
     GPS_callback();
+    break;
+
+  case DID_GPS_RSSI:
+    GPS_Info_callback();
     break;
   }
 
