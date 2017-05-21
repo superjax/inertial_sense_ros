@@ -11,7 +11,9 @@ A ROS wrapper for the InertialSense uINS2 GPS-INS sensor
 - Coning and Sculling integral streaming
 - Timestamping uses GPS timestamps when available and syncs sensor messages with ROS time if unavailable.
 - Flash configuration via parameters
+
 ## ToDo
+- Changing dynamic model via parameter
 - Adjusting rate of streaming and flash configuration on-the-fly with dynamic reconfigure
 
 ## Installation
