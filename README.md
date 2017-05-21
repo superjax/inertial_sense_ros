@@ -36,7 +36,11 @@ rosrun inertial_sense inertial_sense_node
 
 For changing parameter values and topic remapping from the command line using `rosrun` refer to the [Remapping Arguments](http://wiki.ros.org/Remapping%20Arguments) page.
 
-For setting parameters and topic remappings from a launch file, refer to the [Roslaunch for Larger Projects](http://wiki.ros.org/roslaunch/Tutorials/Roslaunch%20tips%20for%20larger%20projects) page.
+For setting parameters and topic remappings from a launch file, refer to the [Roslaunch for Larger Projects](http://wiki.ros.org/roslaunch/Tutorials/Roslaunch%20tips%20for%20larger%20projects) page.  For setting vector parameters, use the following syntax:
+
+``` bash
+rosrun inertial_sense inertial_sense_node _GPS_ref_lla:=[40.2571739, -111.67388041, 1556.59]
+```
 
 ## Parameters
 - `~port` (string, default: "/dev/ttyUSB0")

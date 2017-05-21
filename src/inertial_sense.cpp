@@ -44,7 +44,7 @@ InertialSenseROS::InertialSenseROS() :
         nh_private_.getParam("GPS_ref_lla", GPS_ref_lla);
     float mag_inclination, mag_declination ,mag_magnitude;
     nh_private_.param<float>("inclination", mag_inclination, 1.14878541071);
-    nh_private_.param<float>("declination", mag_declination, 11.0 + 27/60.0 + 48/3600.0);
+    nh_private_.param<float>("declination", mag_declination, 0.20007290992);
     nh_private_.param<float>("mag_magnitude", mag_magnitude, 1.0); // 51.6619nT <-- Not sure how this works
 
     flash_cfg_.insRotation[0] = INS_rpy[0];
@@ -59,8 +59,8 @@ InertialSenseROS::InertialSenseROS() :
     flash_cfg_.gpsAntOffset[1] = GPS_ant_xyz[1];
     flash_cfg_.gpsAntOffset[2] = GPS_ant_xyz[2];
 
-    flash_cfg_.refLla[0] = GPS_ref_lla[0];
-    flash_cfg_.refLla[1] = GPS_ref_lla[1];
+    flash_cfg_.refLla[0] = GPS_ref_lla[0] * M_PI / 180.0;
+    flash_cfg_.refLla[1] = GPS_ref_lla[1] * M_PI / 180.0;
     flash_cfg_.refLla[2] = GPS_ref_lla[2];
 
     flash_cfg_.magInclination = mag_inclination;
