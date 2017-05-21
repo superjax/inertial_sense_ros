@@ -18,6 +18,7 @@ add_message_files(
   SatInfo.msg
   GPS.msg
   GPSInfo.msg
+  DThetaVel.msg
 )
 
 generate_messages(

@@ -10,12 +10,12 @@
 #include "ros/ros.h"
 #include "ros/timer.h"
 #include "sensor_msgs/Imu.h"
-#include "sensor_msgs/NavSatFix.h"
+#include "sensor_msgs/MagneticField.h"
+#include "sensor_msgs/FluidPressure.h"
 #include "inertial_sense/GPS.h"
 #include "inertial_sense/GPSInfo.h"
+#include "inertial_sense/DThetaVel.h"
 #include "nav_msgs/Odometry.h"
-#include "geometry_msgs/Vector3Stamped.h"
-#include "geometry_msgs/TwistStamped.h"
 
 # define GPS_UTC_OFFSET 315964782 // as of 2017
 
@@ -36,6 +36,8 @@ private:
   bool first_IMU_message_ = true;
   bool got_GPS_fix_ = false;
   double GPS_to_week_offset_;
+
+  nvm_flash_cfg_t flash_cfg_;
 
   std::string frame_id_;
 
@@ -60,6 +62,16 @@ private:
 
   ros_stream_t GPS_info_;
   void GPS_Info_callback();
+
+  ros_stream_t mag_;
+  void mag_callback(int mag_number);
+
+  ros_stream_t baro_;
+  void baro_callback();
+
+  ros_stream_t dt_vel_;
+  void dtheta_vel_callback();
+
 
   // Data to hold on to in between callbacks
   sensor_msgs::Imu imu1_msg, imu2_msg;

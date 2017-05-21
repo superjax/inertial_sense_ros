@@ -6,13 +6,12 @@ A ROS wrapper for the InertialSense uINS2 GPS-INS sensor
 - INS full odometry streaming
 - Dual IMU streaming
 - Full GPS data streaming
-- Timestamping uses GPS timestamps when available and syncs sensor messages with ROS time if unavailable.
-
-## ToDo
-- Flash configuration via parameters
 - Magnetomter streaming
 - Barometer streaming
 - Coning and Sculling integral streaming
+- Timestamping uses GPS timestamps when available and syncs sensor messages with ROS time if unavailable.
+- Flash configuration via parameters
+## ToDo
 - Adjusting rate of streaming and flash configuration on-the-fly with dynamic reconfigure
 
 ## Installation
@@ -62,6 +61,32 @@ For setting parameters and topic remappings from a launch file, refer to the [Ro
     - If true, the node will stream GPS measurements
 - `~sGPS_info_rate`(int, default: 10) 
     - The rate of GPS message streaming (Hz)
+* `~sbaro` (bool default: true)
+    - If true, the node will stream barometer measurements
+* `~sbaro_rate` (int, default: 100)
+    - The rate of barometer streaming (Hz)
+* `~smag` (bool, default: true)
+    - If true, the node will stream both magnetometer measurements
+* `~smag_rate` (int, default: 100)
+    - The rate of magnetometer streaming (Hz)
+* `~sdelta_theta_vel` (bool, default: false)
+    - If true, the node will stream coning and sculling integral versions of IMU measurements
+* `~sdelta_theta_vel_rate` (int, default: 100)
+    - The rate of coning and sculling integral message streaming
+* `~INS_rpy` (vector(3), default: {0, 0, 0})
+    - The roll, pitch, yaw rotation from the INS frame to the output frame
+* `~INS_xyz` (vector(3), default: {0, 0, 0})
+    - The NED translation vector between the INS frame and the output frame (wrt output frame)
+* `~GPS_ang_xyz` (vector(3), default: {0, 0, 0})
+    - The NED translation vector between the INS frame and the GPS antenna (wrt INS frame)
+* `~GPS_ref_lla` (vector(3), default: {0, 0, 0})
+    - The Reference longitude, latitude and altitude for NED calculation in degrees, degrees and meters
+* `~inclination` (float, default: 1.14878541071)
+    - The inclination of earth's magnetic field (radians)
+* `~declination` (float, default: 0.20007290992)
+    - The declination of earth's magnetic field (radians)
+* `mag_magnitude` (float, default: 1.0)
+    - Earth magnetic field (magnetic north) magnitude (nominally 1)
 
 ## Topics
 - `imu1/`(sensor_msgs/Imu) 
@@ -74,3 +99,11 @@ For setting parameters and topic remappings from a launch file, refer to the [Ro
     - full GPS measurement from onbaord GPS
 - `gps/info`(inertial_sense/GPSInfo)
     - sattelite information and carrier noise ratio array for each sattelite
+- `mag1` (sensor_msgs/MagneticField)
+    + magnetic field measurement from magnetometer 1
+- `mag2` (sensor_msgs/MagneticField)
+    + magnetic field measurement from magnetometer 2
+- `baro` (sensor_msgs/FluidPressure)
+    + barometer measurements in kPa
+- `delta_theta_vel` (inertial_sense/DThetaVel)
+    + coning and sculling integral representation of IMU measurements
