@@ -42,6 +42,7 @@ InertialSenseROS::InertialSenseROS() :
         nh_private_.getParam("GPS_ant_xyz", GPS_ant_xyz);
     if (nh_private_.hasParam("GPS_ref_lla"))
         nh_private_.getParam("GPS_ref_lla", GPS_ref_lla);
+
     float mag_inclination, mag_declination ,mag_magnitude;
     nh_private_.param<float>("inclination", mag_inclination, 1.14878541071);
     nh_private_.param<float>("declination", mag_declination, 0.20007290992);
