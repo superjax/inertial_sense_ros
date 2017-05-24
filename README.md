@@ -47,27 +47,27 @@ For setting parameters and topic remappings from a launch file, refer to the [Ro
 
 
 ## Parameters
-- `~port` (string, default: "/dev/ttyUSB0")
+* `~port` (string, default: "/dev/ttyUSB0")
     - Serial port to connect to
-- `~baud` (int, default: 3000000)
+* `~baud` (int, default: 3000000)
     - baudrate of serial communication 
-- `~frame_id` (string, default "body") 
-    - frame id of all measurements 
-- `~sINS` (bool, default: true)
-    - Whether to stream the full 12-DOF odometry measurement
-- `~sINS_rate` (int, default: 100)
-    - The rate of odometry measurement streaming (Hz)
-- `~sIMU`(bool, default: true)
-    - Whether to stream IMU measurements
-- `~sIMU_rate`(int, default: 100) 
-    - The rate of IMU measurement streaming (Hz)
-- `~sGPS`(bool, default: true) 
-    - If true, the node will stream GPS measurements
-- `~sGPS_rate`(int, default: 10) 
-    - The rate of GPS message streaming (Hz)
-- `~sGPS_info`(bool, default: true) 
-    - If true, the node will stream GPS measurements
-- `~sGPS_info_rate`(int, default: 10) 
+* `~frame_id` (string, default "body") 
+   - frame id of all measurements 
+* `~sINS` (bool, default: true)
+   - Whether to stream the full 12-DOF odometry measurement
+* `~sINS_rate` (int, default: 100)
+   - The rate of odometry measurement streaming (Hz)
+* `~sIMU`(bool, default: true)
+   - Whether to stream IMU measurements
+* `~sIMU_rate`(int, default: 100) 
+   - The rate of IMU measurement streaming (Hz)
+* `~sGPS`(bool, default: true) 
+   - If true, the node will stream GPS measurements
+* `~sGPS_rate`(int, default: 10) 
+   - The rate of GPS message streaming (Hz)
+* `~sGPS_info`(bool, default: true) 
+   - If true, the node will stream GPS measurements
+* `~sGPS_info_rate`(int, default: 10) 
     - The rate of GPS message streaming (Hz)
 * `~sbaro` (bool default: true)
     - If true, the node will stream barometer measurements
@@ -81,6 +81,7 @@ For setting parameters and topic remappings from a launch file, refer to the [Ro
     - If true, the node will stream coning and sculling integral versions of IMU measurements
 * `~sdelta_theta_vel_rate` (int, default: 100)
     - The rate of coning and sculling integral message streaming
+
 * `~INS_rpy` (vector(3), default: {0, 0, 0})
     - The roll, pitch, yaw rotation from the INS frame to the output frame
 * `~INS_xyz` (vector(3), default: {0, 0, 0})
