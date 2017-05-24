@@ -11,9 +11,9 @@ A ROS wrapper for the InertialSense uINS2 GPS-INS sensor
 - Coning and Sculling integral streaming
 - Timestamping uses GPS timestamps when available and syncs sensor messages with ROS time if unavailable.
 - Flash configuration via parameters
+- Changing dynamic model via parameter
 
 ## ToDo
-- Changing dynamic model via parameter
 - Adjusting rate of streaming and flash configuration on-the-fly with dynamic reconfigure
 
 ## Installation
@@ -95,6 +95,17 @@ For setting parameters and topic remappings from a launch file, refer to the [Ro
     - The declination of earth's magnetic field (radians)
 * `mag_magnitude` (float, default: 1.0)
     - Earth magnetic field (magnetic north) magnitude (nominally 1)
+* `dynamic_model` (int, default: 8)
+    - Dynamic model used in internal filter of uINS.
+       - 0 = portable
+       - 2 = stationary
+       - 3 = pedestrian
+       - 4 = automotive
+       - 5 = sea
+       - 6 = airborne 1G
+       - 7 = airborne 2G
+       - 8 = airborne 4G
+       - 9 = wrist
 
 ## Topics
 - `imu1/`(sensor_msgs/Imu) 

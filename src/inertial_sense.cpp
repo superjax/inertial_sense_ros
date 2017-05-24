@@ -48,6 +48,9 @@ InertialSenseROS::InertialSenseROS() :
     nh_private_.param<float>("declination", mag_declination, 0.20007290992);
     nh_private_.param<float>("mag_magnitude", mag_magnitude, 1.0); // 51.6619nT <-- Not sure how this works
 
+    int dynamic_model;
+    nh_private_.param<int>("dynamic_model", dynamic_model, 8);
+
     flash_cfg_.insRotation[0] = INS_rpy[0];
     flash_cfg_.insRotation[1] = INS_rpy[1];
     flash_cfg_.insRotation[2] = INS_rpy[2];
@@ -67,6 +70,8 @@ InertialSenseROS::InertialSenseROS() :
     flash_cfg_.magInclination = mag_inclination;
     flash_cfg_.magDeclination = mag_declination;
     flash_cfg_.magMagnitude = mag_magnitude;
+
+    flash_cfg_.insDynModel = dynamic_model;
 
     inertialSenseInterface_.SetFlashConfig(flash_cfg_);
 
