@@ -46,6 +46,7 @@ set(INERTIALSENSE_SDK_SRC
   ${INERTIALSENSE_SDK_DIR}/src/DeviceLogKML.cpp
   ${INERTIALSENSE_SDK_DIR}/src/DeviceLogSerial.cpp
   ${INERTIALSENSE_SDK_DIR}/src/DeviceLogSorted.cpp
+  ${INERTIALSENSE_SDK_DIR}/src/GpsParser.cpp
   ${INERTIALSENSE_SDK_DIR}/src/InertialSense.cpp
   ${INERTIALSENSE_SDK_DIR}/src/inertialSenseBootLoader.c
   ${INERTIALSENSE_SDK_DIR}/src/ISDataMappings.cpp
@@ -54,9 +55,9 @@ set(INERTIALSENSE_SDK_SRC
   ${INERTIALSENSE_SDK_DIR}/src/ISMatrix.c
   ${INERTIALSENSE_SDK_DIR}/src/ISPose.c
   ${INERTIALSENSE_SDK_DIR}/src/ISTcpClient.cpp
+  ${INERTIALSENSE_SDK_DIR}/src/ISTcpServer.cpp
   ${INERTIALSENSE_SDK_DIR}/src/ISUtilities.cpp
   ${INERTIALSENSE_SDK_DIR}/src/linked_list.c
-  ${INERTIALSENSE_SDK_DIR}/src/Rtcm3Reader.cpp
   ${INERTIALSENSE_SDK_DIR}/src/serialPort.c
   ${INERTIALSENSE_SDK_DIR}/src/serialPortPlatform.c
   ${INERTIALSENSE_SDK_DIR}/src/time_conversion.c
@@ -64,7 +65,6 @@ set(INERTIALSENSE_SDK_SRC
   ${INERTIALSENSE_SDK_DIR}/src/tinyxml.cpp
   ${INERTIALSENSE_SDK_DIR}/src/tinyxmlerror.cpp
   ${INERTIALSENSE_SDK_DIR}/src/tinyxmlparser.cpp
-  ${INERTIALSENSE_SDK_DIR}/src/UbloxReader.cpp
 )
 
 include_directories(include
@@ -74,8 +74,8 @@ include_directories(include
 
 
 add_executable(inertial_sense_node
-	src/inertial_sense.cpp
-	include/inertial_sense.h
+        src/inertial_sense.cpp
+        include/inertial_sense.h
         ${INERTIALSENSE_SDK_SRC}
 )
 target_link_libraries(inertial_sense_node ${catkin_LIBRARIES})

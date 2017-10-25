@@ -111,14 +111,14 @@ InertialSenseROS::InertialSenseROS() :
         inertialSenseInterface_.BroadcastBinaryData(DID_GPS, 1000/GPS_.stream_rate, &data_callback);
     }
 
-    // Set up the GPS info ROS stream
-    nh_private_.param<bool>("sGPS_info", GPS_info_.stream_on, true);
-    nh_private_.param<int>("sGPS_info_rate", GPS_info_.stream_rate, 10);
-    if (GPS_info_.stream_on)
-    {
-        GPS_info_.pub = nh_.advertise<inertial_sense::GPSInfo>("gps/info", 1);
-        inertialSenseInterface_.BroadcastBinaryData(DID_GPS_RSSI, 1000/GPS_info_.stream_rate, &data_callback);
-    }
+     // Set up the GPS info ROS stream
+     nh_private_.param<bool>("sGPS_info", GPS_info_.stream_on, true);
+     nh_private_.param<int>("sGPS_info_rate", GPS_info_.stream_rate, 10);
+     if (GPS_info_.stream_on)
+     {
+         GPS_info_.pub = nh_.advertise<inertial_sense::GPSInfo>("gps/info", 1);
+         inertialSenseInterface_.BroadcastBinaryData(DID_GPS_CNO, 1000/GPS_info_.stream_rate, &data_callback);
+     }
 
     // Set up the magnetometer ROS stream
     nh_private_.param<bool>("smag", mag_.stream_on, true);
@@ -275,16 +275,16 @@ void InertialSenseROS::GPS_callback()
 
 void InertialSenseROS::GPS_Info_callback()
 {
-    uint64_t seconds = GPS_UTC_OFFSET + GPS_week_seconds + floor(d_.gpsRssi.timeOfWeekMs/1e3);
-    uint64_t nsec = (d_.gpsRssi.timeOfWeekMs - floor(d_.gpsRssi.timeOfWeekMs))*1e6;
+    uint64_t seconds = GPS_UTC_OFFSET + GPS_week_seconds + floor(d_.gpsCNO.timeOfWeekMs/1e3);
+    uint64_t nsec = (d_.gpsCNO.timeOfWeekMs - floor(d_.gpsCNO.timeOfWeekMs))*1e6;
     //  ROS_INFO("dsec = %d dnsec = %d", ros::Time::now().sec - seconds, ros::Time::now().nsec - nsec);
     gps_info_msg.header.stamp = ros::Time(seconds, nsec);
     gps_info_msg.header.frame_id = frame_id_;
-    gps_info_msg.num_sats = d_.gpsRssi.numSats;
+    gps_info_msg.num_sats = d_.gpsCNO.numSats;
     for (int i = 0; i < 50; i++)
     {
-        gps_info_msg.sattelite_info[i].sat_id = d_.gpsRssi.info[i].svId;
-        gps_info_msg.sattelite_info[i].cno = d_.gpsRssi.info[i].cno;
+        gps_info_msg.sattelite_info[i].sat_id = d_.gpsCNO.info[i].svId;
+        gps_info_msg.sattelite_info[i].cno = d_.gpsCNO.info[i].cno;
     }
     GPS_info_.pub.publish(gps_info_msg);
 }
@@ -426,7 +426,7 @@ void InertialSenseROS::callback(p_data_t* data)
         GPS_callback();
         break;
 
-    case DID_GPS_RSSI:
+    case DID_GPS_CNO:
         GPS_Info_callback();
         break;
 
