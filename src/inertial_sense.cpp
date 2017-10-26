@@ -63,8 +63,8 @@ InertialSenseROS::InertialSenseROS() :
     flash_cfg_.gpsAntOffset[1] = GPS_ant_xyz[1];
     flash_cfg_.gpsAntOffset[2] = GPS_ant_xyz[2];
 
-    flash_cfg_.refLla[0] = GPS_ref_lla[0] * M_PI / 180.0;
-    flash_cfg_.refLla[1] = GPS_ref_lla[1] * M_PI / 180.0;
+    flash_cfg_.refLla[0] = GPS_ref_lla[0];
+    flash_cfg_.refLla[1] = GPS_ref_lla[1];
     flash_cfg_.refLla[2] = GPS_ref_lla[2];
 
     flash_cfg_.magInclination = mag_inclination;
