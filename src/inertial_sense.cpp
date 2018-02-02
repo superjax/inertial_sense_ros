@@ -103,7 +103,7 @@ InertialSenseROS::InertialSenseROS() :
 
     // Set up the INS streams
     nh_private_.param<bool>("sINS", INS_.stream_on, true);
-    nh_private_.param<int>("sINS_rate", INS_.stream_rate, 50);
+    nh_private_.param<int>("sINS_rate", INS_.stream_rate, 1000);
     if (INS_.stream_on)
     {
         INS_.pub = nh_.advertise<nav_msgs::Odometry>("ins", 1);
@@ -180,8 +180,12 @@ InertialSenseROS::InertialSenseROS() :
 
 void InertialSenseROS::request_data(uint32_t did, float update_rate)
 {
-  if (update_rate >= 1000.0)
+  if (update_rate > 1000)
+  {
     ROS_ERROR("inertialsense: unable to support stream rates higher than 1kHz");
+    update_rate = 1000;
+  }
+
   else
   {
     int messageSize = is_comm_get_data(did, 0, 0, 1000/update_rate);
