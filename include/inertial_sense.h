@@ -50,6 +50,8 @@ private:
     ros::Publisher pub2;
   } ros_stream_t;
 
+  void request_data(uint32_t did, float update_rate);
+
   ros_stream_t INS_;
   void INS1_callback(const ins_1_t* const msg);
   void INS2_callback(const ins_2_t* const msg);

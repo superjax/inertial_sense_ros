@@ -103,77 +103,66 @@ InertialSenseROS::InertialSenseROS() :
 
     // Set up the INS streams
     nh_private_.param<bool>("sINS", INS_.stream_on, true);
-    nh_private_.param<int>("sINS_rate", INS_.stream_rate, 100);
+    nh_private_.param<int>("sINS_rate", INS_.stream_rate, 50);
     if (INS_.stream_on)
     {
         INS_.pub = nh_.advertise<nav_msgs::Odometry>("ins", 1);
-        messageSize = is_comm_get_data(DID_INS_1, 0, 0, (int)(1000/INS_.stream_rate));
-        serial_->write(message_buffer_, messageSize);
-
-        messageSize = is_comm_get_data(DID_INS_2, 0, 0, (int)(1000/INS_.stream_rate));
-        serial_->write(message_buffer_, messageSize);
-
-        messageSize = is_comm_get_data(DID_DUAL_IMU, 0, 0, (int)(1000/INS_.stream_rate));
-        serial_->write(message_buffer_, messageSize);
+        request_data(DID_INS_1, INS_.stream_rate);
+        request_data(DID_INS_2, INS_.stream_rate);
+        request_data(DID_DUAL_IMU, INS_.stream_rate);
     }
 
     // Set up the IMU ROS stream
-    nh_private_.param<bool>("sIMU", IMU_.stream_on, true);
+    nh_private_.param<bool>("sIMU", IMU_.stream_on, false);
     nh_private_.param<int>("sIMU1_rate", IMU_.stream_rate, 100);
     if (IMU_.stream_on)
     {
         IMU_.pub = nh_.advertise<sensor_msgs::Imu>("imu1", 1);
         IMU_.pub2 = nh_.advertise<sensor_msgs::Imu>("imu2", 1);
-        uint32_t update_rate = 1000/IMU_.stream_rate;
+        uint32_t update_rate = IMU_.stream_rate;
         if (INS_.stream_on)
         {
             update_rate = (INS_.stream_rate > IMU_.stream_rate) ? 1000/IMU_.stream_rate : update_rate;
         }
-        messageSize = is_comm_get_data(DID_DUAL_IMU, 0, 0, update_rate);
-        serial_->write(message_buffer_, messageSize);
+        request_data(DID_DUAL_IMU, update_rate);
     }
 
     // Set up the GPS ROS stream
-    nh_private_.param<bool>("sGPS", GPS_.stream_on, true);
+    nh_private_.param<bool>("sGPS", GPS_.stream_on, false);
     nh_private_.param<int>("sGPS_rate", GPS_.stream_rate, 10);
     if (GPS_.stream_on)
     {
         GPS_.pub = nh_.advertise<inertial_sense::GPS>("gps", 1);
-        messageSize = is_comm_get_data(DID_GPS_NAV, 0, 0, 1000/GPS_.stream_rate);
-        serial_->write(message_buffer_, messageSize);
+        request_data(DID_GPS_NAV, GPS_.stream_rate);
     }
 
      // Set up the GPS info ROS stream
-     nh_private_.param<bool>("sGPS_info", GPS_info_.stream_on, true);
+     nh_private_.param<bool>("sGPS_info", GPS_info_.stream_on, false);
      nh_private_.param<int>("sGPS_info_rate", GPS_info_.stream_rate, 10);
      if (GPS_info_.stream_on)
      {
          GPS_info_.pub = nh_.advertise<inertial_sense::GPSInfo>("gps/info", 1);
-         messageSize = is_comm_get_data(DID_GPS1_SAT, 0, 0, 1000/GPS_info_.stream_rate);
-         serial_->write(message_buffer_, messageSize);
+         request_data(DID_GPS1_SAT, GPS_info_.stream_rate);
      }
 
     // Set up the magnetometer ROS stream
-    nh_private_.param<bool>("smag", mag_.stream_on, true);
+    nh_private_.param<bool>("smag", mag_.stream_on, false);
     nh_private_.param<int>("smag_rate", mag_.stream_rate, 100);
     if (mag_.stream_on)
     {
         mag_.pub = nh_.advertise<sensor_msgs::MagneticField>("mag1", 1);
         mag_.pub2 = nh_.advertise<sensor_msgs::MagneticField>("mag2", 1);
-        messageSize = is_comm_get_data(DID_MAGNETOMETER_1, 0, 0, 1000/mag_.stream_rate);
-        serial_->write(message_buffer_, messageSize);
-        messageSize = is_comm_get_data(DID_MAGNETOMETER_2, 0, 0, 1000/mag_.stream_rate);
-        serial_->write(message_buffer_, messageSize);
+        request_data(DID_MAGNETOMETER_1, mag_.stream_rate);
+        request_data(DID_MAGNETOMETER_2, mag_.stream_rate);
     }
 
     // Set up the barometer ROS stream
-    nh_private_.param<bool>("sbaro", baro_.stream_on, true);
+    nh_private_.param<bool>("sbaro", baro_.stream_on, false);
     nh_private_.param<int>("sbaro_rate", baro_.stream_rate, 100);
     if (baro_.stream_on)
     {
         baro_.pub = nh_.advertise<sensor_msgs::FluidPressure>("baro", 1);
-        messageSize = is_comm_get_data(DID_BAROMETER, 0, 0, 1000/baro_.stream_rate);
-        serial_->write(message_buffer_, messageSize);
+        request_data(DID_BAROMETER, baro_.stream_rate);
     }
 
     // Set up the delta_theta_vel (coning and sculling integral) ROS stream
@@ -182,13 +171,22 @@ InertialSenseROS::InertialSenseROS() :
     if (dt_vel_.stream_on)
     {
         dt_vel_.pub = nh_.advertise<inertial_sense::DThetaVel>("delta_theta_vel", 1);
-        messageSize = is_comm_get_data(DID_DUAL_IMU_DTHETA_DVEL, 0, 0, 1000/dt_vel_.stream_rate);
-        serial_->write(message_buffer_, messageSize);
+        request_data(DID_DUAL_IMU_DTHETA_DVEL, dt_vel_.stream_rate);
     }
 
     // ask for device info every 2 seconds
-    messageSize = is_comm_get_data(DID_DEV_INFO, 0, 0, 2000);
+    request_data(DID_DEV_INFO, 0.5);
+}
+
+void InertialSenseROS::request_data(uint32_t did, float update_rate)
+{
+  if (update_rate >= 1000.0)
+    ROS_ERROR("inertialsense: unable to support stream rates higher than 1kHz");
+  else
+  {
+    int messageSize = is_comm_get_data(did, 0, 0, 1000/update_rate);
     serial_->write(message_buffer_, messageSize);
+  }
 }
 
 void InertialSenseROS::handle_bytes(const uint8_t *bytes, uint8_t len)
@@ -495,11 +493,6 @@ int main(int argc, char**argv)
 {
     ros::init(argc, argv, "inertial_sense_node");
     InertialSenseROS thing;
-
-    while(ros::ok())
-    {
-        ros::spinOnce();
-    }
-
+    ros::spin();
     return 0;
 }
