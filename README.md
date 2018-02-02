@@ -2,6 +2,9 @@
 
 A ROS wrapper for the InertialSense uINS2 GPS-INS sensor
 
+## Known Issues
+Stream rates are actually about 0.3 times the requested stream rate
+
 ## Functionality 
 - INS full odometry streaming
 - Dual IMU streaming
@@ -13,8 +16,6 @@ A ROS wrapper for the InertialSense uINS2 GPS-INS sensor
 - Flash configuration via parameters
 - Changing dynamic model via parameter
 
-## ToDo
-- Adjusting rate of streaming and flash configuration on-the-fly with dynamic reconfigure
 
 ## Installation
 This is a ROS package, with the InertialSenseSDK as a submodule, so just create a catkin workspace, clone this into the `src` folder, pull down the submodule and build
