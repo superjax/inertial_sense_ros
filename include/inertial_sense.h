@@ -3,9 +3,8 @@
 #include <algorithm>
 #include <string>
 
-#include "InertialSense.h"
-#include "ISDisplay.h"
-#include "ISUtilities.h"
+#include "ISComm.h"
+#include "serial.h"
 
 #include "ros/ros.h"
 #include "ros/timer.h"
@@ -20,12 +19,13 @@
 # define GPS_UTC_OFFSET 315964782 // as of 2017
 
 
-class InertialSenseROS
+class InertialSenseROS : SerialListener
 {
 public:
   InertialSenseROS();
   void callback(p_data_t* data);
   void update();
+  virtual void handle_bytes(const uint8_t* bytes, uint8_t len);
 
 private:
 
@@ -51,26 +51,26 @@ private:
   } ros_stream_t;
 
   ros_stream_t INS_;
-  void INS1_callback();
-  void INS2_callback();
+  void INS1_callback(const ins_1_t* const msg);
+  void INS2_callback(const ins_2_t* const msg);
 
   ros_stream_t IMU_;
-  void IMU_callback();
+  void IMU_callback(const dual_imu_t* const msg);
 
   ros_stream_t GPS_;
-  void GPS_callback();
+  void GPS_callback(const gps_nav_t* const msg);
 
   ros_stream_t GPS_info_;
-  void GPS_Info_callback();
+  void GPS_Info_callback(const gps_sat_t* const msg);
 
   ros_stream_t mag_;
-  void mag_callback(int mag_number);
+  void mag_callback(const magnetometer_t* const msg, int mag_number);
 
   ros_stream_t baro_;
-  void baro_callback();
+  void baro_callback(const barometer_t* const msg);
 
   ros_stream_t dt_vel_;
-  void dtheta_vel_callback();
+  void dtheta_vel_callback(const dual_imu_dtheta_dvel_t* const msg);
 
 
   // Data to hold on to in between callbacks
@@ -80,12 +80,12 @@ private:
   inertial_sense::GPSInfo gps_info_msg;
   uint64_t GPS_week_seconds;
 
-
-  // Data Struct received from uINS
-  uDatasets d_;
-
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
 
-  InertialSense inertialSenseInterface_;
+  // Serial Connection to uINS
+  Serial* serial_;
+  uint8_t message_buffer_[BUFFER_SIZE];
+
+//  InertialSense inertialSenseInterface_;
 };
