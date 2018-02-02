@@ -10,8 +10,8 @@ find_package(catkin REQUIRED COMPONENTS
 )
 find_package(Threads)
 
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu11 -fms-extensions -Wl,--no-as-needed")
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11 -fms-extensions -Wl,--no-as-needed")
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu11 -fms-extensions -Wl,--no-as-needed -DPLATFORM_IS_LINUX" )
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11 -fms-extensions -Wl,--no-as-needed -DPLATFORM_IS_LINUX")
 
 add_message_files(
   FILES
@@ -33,6 +33,7 @@ catkin_package(
 )
 
 SET(IS_SP_DIR lib/inertialsense_serial_protocol)
+SET(SERIAL_DIR lib/serial)
 
 set(IS_SRC
     ${IS_SP_DIR}/data_sets.c
@@ -42,18 +43,25 @@ set(IS_SRC
     ${IS_SP_DIR}/ISConstants.h
 )
 
+set(SERIAL_SRC
+    ${SERIAL_DIR}/serialPort.c
+    ${SERIAL_DIR}/serialPort.h
+    ${SERIAL_DIR}/serialPortPlatform.c
+    ${SERIAL_DIR}/serialPortPlatform.h
+)
+
 include_directories(include
   ${catkin_INCLUDE_DIRS}
   ${IS_SP_DIR}
+  ${SERIAL_DIR}
 )
 
 
 add_executable(inertial_sense_node
         src/inertial_sense.cpp
         include/inertial_sense.h
-        src/serial.cpp
-        include/serial.h
         ${IS_SRC}
+        ${SERIAL_SRC}
 )
 target_link_libraries(inertial_sense_node ${catkin_LIBRARIES})
 add_dependencies(inertial_sense_node inertial_sense_generate_messages_cpp)

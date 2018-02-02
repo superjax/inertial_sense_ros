@@ -4,7 +4,8 @@
 #include <string>
 
 #include "ISComm.h"
-#include "serial.h"
+//#include "serial.h"
+#include "serialPortPlatform.h"
 
 #include "ros/ros.h"
 #include "ros/timer.h"
@@ -18,14 +19,15 @@
 
 # define GPS_UTC_OFFSET 315964782 // as of 2017
 
+#define BUFFER_SIZE 2048
 
-class InertialSenseROS : SerialListener
+
+class InertialSenseROS //: SerialListener
 {
 public:
   InertialSenseROS();
   void callback(p_data_t* data);
   void update();
-  virtual void handle_bytes(const uint8_t* bytes, uint8_t len);
 
 private:
 
@@ -86,8 +88,9 @@ private:
   ros::NodeHandle nh_private_;
 
   // Serial Connection to uINS
-  Serial* serial_;
+//  Serial* serial_;
   uint8_t message_buffer_[BUFFER_SIZE];
+  serial_port_t serial_;
 
 //  InertialSense inertialSenseInterface_;
 };
