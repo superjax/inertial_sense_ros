@@ -15,6 +15,7 @@
 #include "inertial_sense/GPS.h"
 #include "inertial_sense/GPSInfo.h"
 #include "inertial_sense/DThetaVel.h"
+#include "inertial_sense/VelocityInput.h"
 #include "nav_msgs/Odometry.h"
 
 # define GPS_UTC_OFFSET 315964782 // as of 2017
@@ -54,25 +55,26 @@ private:
 
   void request_data(uint32_t did, float update_rate);
 
+  // Measurement Inputs
+  ros::Subscriber vel_sub_;
+  void velocity_callback(const inertial_sense::VelocityInputConstPtr& msg);
+
+  // Sensor Streaming
   ros_stream_t INS_;
   void INS1_callback(const ins_1_t* const msg);
   void INS2_callback(const ins_2_t* const msg);
-
   ros_stream_t IMU_;
   void IMU_callback(const dual_imu_t* const msg);
-
   ros_stream_t GPS_;
   void GPS_callback(const gps_nav_t* const msg);
-
   ros_stream_t GPS_info_;
   void GPS_Info_callback(const gps_sat_t* const msg);
-
+  ros_stream_t raw_GPS_;
+  void raw_GPS_callback(const gps_raw_t* const msg);
   ros_stream_t mag_;
   void mag_callback(const magnetometer_t* const msg, int mag_number);
-
   ros_stream_t baro_;
   void baro_callback(const barometer_t* const msg);
-
   ros_stream_t dt_vel_;
   void dtheta_vel_callback(const dual_imu_dtheta_dvel_t* const msg);
 

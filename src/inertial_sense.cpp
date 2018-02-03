@@ -4,14 +4,15 @@
 
 #include <ros/console.h>
 
-//static void data_callback(InertialSense* i, p_data_t* data, int pHandle);
-
 InertialSenseROS::InertialSenseROS() :
   nh_(), nh_private_("~"), IMU_offset_(0,0), GPS_to_week_offset_(0)
 {
   nh_private_.param<std::string>("port", port_, "/dev/ttyUSB0");
   nh_private_.param<int>("baudrate", baudrate_, 3000000);
   nh_private_.param<std::string>("frame_id", frame_id_, "body");
+
+  /// Start Up Subscribers
+  vel_sub_ = nh_.subscribe("velocity_sensor", 10, &InertialSenseROS::velocity_callback, this);
 
   /// Connect to the uINS
 
@@ -59,6 +60,9 @@ InertialSenseROS::InertialSenseROS() :
   int dynamic_model;
   nh_private_.param<int>("dynamic_model", dynamic_model, 8);
 
+  int RTK_mode;
+  nh_private_.param<int>("RTK_mode", RTK_mode, 0);
+
   float insRotation[3];
   insRotation[0] = INS_rpy[0];
   insRotation[1] = INS_rpy[1];
@@ -98,6 +102,13 @@ InertialSenseROS::InertialSenseROS() :
   uint32_t insDynModel = dynamic_model;
   messageSize = is_comm_set_data(DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, insDynModel), sizeof(uint32_t), &insDynModel);
   serialPortWrite(&serial_, message_buffer_, messageSize);
+
+  uint32_t sysCfgBits;
+  if (RTK_mode == 1)
+    sysCfgBits = SYS_CFG_BITS_RTK_ROVER;
+  else if (RTK_mode == 2)
+    sysCfgBits = SYS_CFG_BITS_RTK_BASE_STATION;
+  messageSize = is_comm_set_data(DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, sysCfgBits), sizeof(uint32_t), &sysCfgBits);
 
   // Set up the INS streams
   nh_private_.param<bool>("sINS", INS_.stream_on, true);
@@ -170,6 +181,15 @@ InertialSenseROS::InertialSenseROS() :
   {
     dt_vel_.pub = nh_.advertise<inertial_sense::DThetaVel>("delta_theta_vel", 1);
     request_data(DID_DUAL_IMU_DTHETA_DVEL, dt_vel_.stream_rate);
+  }
+
+  // Set up Raw GPS data streams
+  nh_private_.param<bool>("sGPS_raw", raw_GPS_.stream_on, false);
+  nh_private_.param<int>("sGPS_raw_rate", raw_GPS_.stream_rate, 100);
+  if (raw_GPS_.stream_on)
+  {
+    raw_GPS_.pub = nh_.advertise<sensor_msgs::FluidPressure>("gps/raw", 1);
+    request_data(DID_GPS1_RAW, raw_GPS_.stream_rate);
   }
 
   // ask for device info every 2 seconds
@@ -494,6 +514,11 @@ void InertialSenseROS::dtheta_vel_callback(const dual_imu_dtheta_dvel_t * const 
   dthetavel_msg.dt = msg->dt;
 
   dt_vel_.pub.publish(dthetavel_msg);
+}
+
+void InertialSenseROS::velocity_callback(const inertial_sense::VelocityInputConstPtr &msg)
+{
+  velocity_sensor_t;
 }
 
 int main(int argc, char**argv)
