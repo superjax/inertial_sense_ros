@@ -4,7 +4,6 @@
 
 #include <ros/console.h>
 
-//static void data_callback(InertialSense* i, p_data_t* data, int pHandle);
 
 InertialSenseROS::InertialSenseROS() :
   nh_(), nh_private_("~"), IMU_offset_(0,0), GPS_to_week_offset_(0)
@@ -28,10 +27,12 @@ InertialSenseROS::InertialSenseROS() :
     ROS_INFO("Connected to uINS on \"%s\", at %d baud", port_.c_str(), baudrate_);
   }
 
-  is_comm_init(message_buffer_, sizeof(message_buffer_));
+  comm.buffer = message_buffer_;
+  comm.bufferSize = sizeof(message_buffer_);
+  is_comm_init(&comm);
 
   // Stop all broadcasts
-  uint32_t messageSize = is_comm_stop_broadcasts();
+  uint32_t messageSize = is_comm_stop_broadcasts(&comm);
   serialPortWrite(&serial_, message_buffer_, messageSize);
 
   /// Configure the uINS
@@ -63,40 +64,40 @@ InertialSenseROS::InertialSenseROS() :
   insRotation[0] = INS_rpy[0];
   insRotation[1] = INS_rpy[1];
   insRotation[2] = INS_rpy[2];
-  messageSize = is_comm_set_data(DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, insRotation), sizeof(float[3]), insRotation);
+  messageSize = is_comm_set_data(&comm, DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, insRotation), sizeof(float[3]), insRotation);
   serialPortWrite(&serial_, message_buffer_, messageSize);
 
   float insOffset[3];
   insOffset[0] = INS_xyz[0];
   insOffset[1] = INS_xyz[1];
   insOffset[2] = INS_xyz[2];
-  messageSize = is_comm_set_data(DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, insOffset), sizeof(float[3]), insOffset);
+  messageSize = is_comm_set_data(&comm, DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, insOffset), sizeof(float[3]), insOffset);
   serialPortWrite(&serial_, message_buffer_, messageSize);
 
   float gps1AntOffset[3];
   gps1AntOffset[0] = GPS_ant_xyz[0];
   gps1AntOffset[1] = GPS_ant_xyz[1];
   gps1AntOffset[2] = GPS_ant_xyz[2];
-  messageSize = is_comm_set_data(DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, gps1AntOffset), sizeof(float[3]), gps1AntOffset);
+  messageSize = is_comm_set_data(&comm, DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, gps1AntOffset), sizeof(float[3]), gps1AntOffset);
   serialPortWrite(&serial_, message_buffer_, messageSize);
 
   float refLla[3];
   refLla[0] = GPS_ref_lla[0];
   refLla[1] = GPS_ref_lla[1];
   refLla[2] = GPS_ref_lla[2];
-  messageSize = is_comm_set_data(DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, refLla), sizeof(float[3]), refLla);
+  messageSize = is_comm_set_data(&comm, DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, refLla), sizeof(float[3]), refLla);
   serialPortWrite(&serial_, message_buffer_, messageSize);
 
   float magInclination = mag_inclination;
-  messageSize = is_comm_set_data(DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, magInclination), sizeof(float), &magInclination);
+  messageSize = is_comm_set_data(&comm, DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, magInclination), sizeof(float), &magInclination);
   serialPortWrite(&serial_, message_buffer_, messageSize);
 
   float magDeclination = mag_declination;
-  messageSize = is_comm_set_data(DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, magDeclination), sizeof(float), &magDeclination);
+  messageSize = is_comm_set_data(&comm, DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, magDeclination), sizeof(float), &magDeclination);
   serialPortWrite(&serial_, message_buffer_, messageSize);
 
   uint32_t insDynModel = dynamic_model;
-  messageSize = is_comm_set_data(DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, insDynModel), sizeof(uint32_t), &insDynModel);
+  messageSize = is_comm_set_data(&comm, DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, insDynModel), sizeof(uint32_t), &insDynModel);
   serialPortWrite(&serial_, message_buffer_, messageSize);
 
   // Set up the INS streams
@@ -186,7 +187,7 @@ void InertialSenseROS::request_data(uint32_t did, float update_rate)
 
   else
   {
-    int messageSize = is_comm_get_data(did, 0, 0, 1000/update_rate);
+    int messageSize = is_comm_get_data(&comm, did, 0, 0, 1000/update_rate);
     serialPortWrite(&serial_, message_buffer_, messageSize);
   }
 }
@@ -320,7 +321,7 @@ void InertialSenseROS::update()
 
   for (int i = 0; i < bytes_read; i++)
   {
-    uint32_t message_type = is_comm_parse(buffer[i]);
+    uint32_t message_type = is_comm_parse(&comm, buffer[i]);
     switch (message_type)
     {
     case DID_NULL:

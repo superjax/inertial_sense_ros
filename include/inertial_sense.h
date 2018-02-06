@@ -4,7 +4,6 @@
 #include <string>
 
 #include "ISComm.h"
-//#include "serial.h"
 #include "serialPortPlatform.h"
 
 #include "ros/ros.h"
@@ -38,7 +37,7 @@ private:
   bool first_IMU_message_ = true;
   bool got_GPS_fix_ = false;
   double GPS_to_week_offset_;
-
+  is_comm_instance_t comm;
   nvm_flash_cfg_t flash_cfg_;
 
   std::string frame_id_;
