@@ -5,7 +5,7 @@ A ROS wrapper for the InertialSense uINS2 GPS-INS sensor
 ## Known Issues
 Stream rates are actually about 0.3 times the requested stream rate
 
-## Functionality 
+## Functionality
 - INS full odometry streaming
 - Dual IMU streaming
 - Full GPS data streaming
@@ -37,6 +37,8 @@ catkin_make
 rosrun inertial_sense inertial_sense_node
 ```
 
+Make sure that you are a member of the `dailout` group, or you won't have access to the serial port.
+
 For changing parameter values and topic remapping from the command line using `rosrun` refer to the [Remapping Arguments](http://wiki.ros.org/Remapping%20Arguments) page. For setting vector parameters, use the following syntax:
 
 ``` bash
@@ -51,24 +53,24 @@ For setting parameters and topic remappings from a launch file, refer to the [Ro
 * `~port` (string, default: "/dev/ttyUSB0")
     - Serial port to connect to
 * `~baud` (int, default: 3000000)
-    - baudrate of serial communication 
-* `~frame_id` (string, default "body") 
-   - frame id of all measurements 
+    - baudrate of serial communication
+* `~frame_id` (string, default "body")
+   - frame id of all measurements
 * `~sINS` (bool, default: true)
    - Whether to stream the full 12-DOF odometry measurement
 * `~sINS_rate` (int, default: 100)
    - The rate of odometry measurement streaming (Hz)
 * `~sIMU`(bool, default: true)
    - Whether to stream IMU measurements
-* `~sIMU_rate`(int, default: 100) 
+* `~sIMU_rate`(int, default: 100)
    - The rate of IMU measurement streaming (Hz)
-* `~sGPS`(bool, default: true) 
+* `~sGPS`(bool, default: true)
    - If true, the node will stream GPS measurements
-* `~sGPS_rate`(int, default: 10) 
+* `~sGPS_rate`(int, default: 10)
    - The rate of GPS message streaming (Hz)
-* `~sGPS_info`(bool, default: true) 
+* `~sGPS_info`(bool, default: true)
    - If true, the node will stream GPS measurements
-* `~sGPS_info_rate`(int, default: 10) 
+* `~sGPS_info_rate`(int, default: 10)
     - The rate of GPS message streaming (Hz)
 * `~sbaro` (bool default: true)
     - If true, the node will stream barometer measurements
@@ -110,13 +112,13 @@ For setting parameters and topic remappings from a launch file, refer to the [Ro
        - 9 = wrist
 
 ## Topics
-- `imu1/`(sensor_msgs/Imu) 
+- `imu1/`(sensor_msgs/Imu)
     - Imu measurements from IMU1 (NED frame)
-- `imu2/`(sensor_msgs/Imu) 
+- `imu2/`(sensor_msgs/Imu)
     - Imu measurements from IMU2 (NED frame)
-- `ins/`(nav_msgs/Odometry) 
+- `ins/`(nav_msgs/Odometry)
     - full 12-DOF measurements from onboard estimator (NED frame)
-- `gps/`(inertial_sense/GPS) 
+- `gps/`(inertial_sense/GPS)
     - full GPS measurement from onbaord GPS
 - `gps/info`(inertial_sense/GPSInfo)
     - sattelite information and carrier noise ratio array for each sattelite
