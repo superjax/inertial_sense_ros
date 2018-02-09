@@ -15,6 +15,7 @@
 #include "inertial_sense/GPS.h"
 #include "inertial_sense/GPSInfo.h"
 #include "inertial_sense/DThetaVel.h"
+#include "inertial_sense/VelocityInput.h"
 #include "nav_msgs/Odometry.h"
 
 # define GPS_UTC_OFFSET 315964782 // as of 2017
@@ -42,6 +43,10 @@ private:
   nvm_flash_cfg_t flash_cfg_;
 
   std::string frame_id_;
+
+  // Inputs
+  ros::Subscriber vel_sub_;
+  void velocity_callback(const inertial_sense::VelocityInputConstPtr &msg);
 
   // ROS Stream handling
   typedef struct
@@ -90,6 +95,7 @@ private:
   // Serial Connection to uINS
 //  Serial* serial_;
   uint8_t message_buffer_[BUFFER_SIZE];
+  is_comm_instance_t s_comm_;
   serial_port_t serial_;
 
 //  InertialSense inertialSenseInterface_;
