@@ -4,7 +4,6 @@
 
 #include <ros/console.h>
 
-//static void data_callback(InertialSense* i, p_data_t* data, int pHandle);
 
 InertialSenseROS::InertialSenseROS() :
   nh_(), nh_private_("~"), IMU_offset_(0,0), GPS_to_week_offset_(0)
