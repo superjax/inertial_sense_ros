@@ -2,8 +2,7 @@
 
 A ROS wrapper for the InertialSense uINS2 GPS-INS sensor
 
-## Known Issues
-Stream rates are actually about 0.3 times the requested stream rate
+
 
 ## Functionality
 - INS full odometry streaming

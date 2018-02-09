@@ -4,7 +4,6 @@
 #include <string>
 
 #include "ISComm.h"
-//#include "serial.h"
 #include "serialPortPlatform.h"
 
 #include "ros/ros.h"
@@ -15,7 +14,7 @@
 #include "inertial_sense/GPS.h"
 #include "inertial_sense/GPSInfo.h"
 #include "inertial_sense/DThetaVel.h"
-#include "inertial_sense/VelocityInput.h"
+#include "inertial_sense/VelocitySensor.h"
 #include "nav_msgs/Odometry.h"
 
 # define GPS_UTC_OFFSET 315964782 // as of 2017
@@ -39,10 +38,14 @@ private:
   bool first_IMU_message_ = true;
   bool got_GPS_fix_ = false;
   double GPS_to_week_offset_;
-
+  is_comm_instance_t comm;
   nvm_flash_cfg_t flash_cfg_;
 
   std::string frame_id_;
+
+  // Inputs
+  ros::Subscriber vel_sub_;
+  void velocity_callback(const inertial_sense::VelocitySensorConstPtr &msg);
 
   // ROS Stream handling
   typedef struct
@@ -54,10 +57,6 @@ private:
   } ros_stream_t;
 
   void request_data(uint32_t did, float update_rate);
-
-  // Measurement Inputs
-  ros::Subscriber vel_sub_;
-  void velocity_callback(const inertial_sense::VelocityInputConstPtr& msg);
 
   // Sensor Streaming
   ros_stream_t INS_;
@@ -92,6 +91,7 @@ private:
   // Serial Connection to uINS
 //  Serial* serial_;
   uint8_t message_buffer_[BUFFER_SIZE];
+  is_comm_instance_t s_comm_;
   serial_port_t serial_;
 
 //  InertialSense inertialSenseInterface_;

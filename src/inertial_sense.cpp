@@ -29,11 +29,19 @@ InertialSenseROS::InertialSenseROS() :
     ROS_INFO("Connected to uINS on \"%s\", at %d baud", port_.c_str(), baudrate_);
   }
 
-  is_comm_init(message_buffer_, sizeof(message_buffer_));
+  /// Initialize the serial message parser
+
+  s_comm_.buffer = message_buffer_;
+  s_comm_.bufferSize = sizeof(message_buffer_);
+
+  is_comm_init(&s_comm_);
 
   // Stop all broadcasts
-  uint32_t messageSize = is_comm_stop_broadcasts();
+  uint32_t messageSize = is_comm_stop_broadcasts(&s_comm_);
   serialPortWrite(&serial_, message_buffer_, messageSize);
+
+  /// Subscribe to Inputs
+  vel_sub_ = nh_.subscribe("velocity", 1, &InertialSenseROS::velocity_callback, this);
 
   /// Configure the uINS
 
@@ -67,40 +75,40 @@ InertialSenseROS::InertialSenseROS() :
   insRotation[0] = INS_rpy[0];
   insRotation[1] = INS_rpy[1];
   insRotation[2] = INS_rpy[2];
-  messageSize = is_comm_set_data(DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, insRotation), sizeof(float[3]), insRotation);
+  messageSize = is_comm_set_data(&s_comm_, DID_FLASH_CONFIG, sizeof(float[3]), offsetof(nvm_flash_cfg_t, insRotation), insRotation);
   serialPortWrite(&serial_, message_buffer_, messageSize);
 
   float insOffset[3];
   insOffset[0] = INS_xyz[0];
   insOffset[1] = INS_xyz[1];
   insOffset[2] = INS_xyz[2];
-  messageSize = is_comm_set_data(DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, insOffset), sizeof(float[3]), insOffset);
+  messageSize = is_comm_set_data(&s_comm_, DID_FLASH_CONFIG, sizeof(float[3]), offsetof(nvm_flash_cfg_t, insOffset),  insOffset);
   serialPortWrite(&serial_, message_buffer_, messageSize);
 
   float gps1AntOffset[3];
   gps1AntOffset[0] = GPS_ant_xyz[0];
   gps1AntOffset[1] = GPS_ant_xyz[1];
   gps1AntOffset[2] = GPS_ant_xyz[2];
-  messageSize = is_comm_set_data(DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, gps1AntOffset), sizeof(float[3]), gps1AntOffset);
+  messageSize = is_comm_set_data(&s_comm_, DID_FLASH_CONFIG, sizeof(float[3]), offsetof(nvm_flash_cfg_t, gps1AntOffset), gps1AntOffset);
   serialPortWrite(&serial_, message_buffer_, messageSize);
 
   float refLla[3];
   refLla[0] = GPS_ref_lla[0];
   refLla[1] = GPS_ref_lla[1];
   refLla[2] = GPS_ref_lla[2];
-  messageSize = is_comm_set_data(DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, refLla), sizeof(float[3]), refLla);
+  messageSize = is_comm_set_data(&s_comm_, DID_FLASH_CONFIG, sizeof(float[3]), offsetof(nvm_flash_cfg_t, refLla), refLla);
   serialPortWrite(&serial_, message_buffer_, messageSize);
 
   float magInclination = mag_inclination;
-  messageSize = is_comm_set_data(DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, magInclination), sizeof(float), &magInclination);
+  messageSize = is_comm_set_data(&s_comm_, DID_FLASH_CONFIG, sizeof(float), offsetof(nvm_flash_cfg_t, magInclination), &magInclination);
   serialPortWrite(&serial_, message_buffer_, messageSize);
 
   float magDeclination = mag_declination;
-  messageSize = is_comm_set_data(DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, magDeclination), sizeof(float), &magDeclination);
+  messageSize = is_comm_set_data(&s_comm_, DID_FLASH_CONFIG, sizeof(float), offsetof(nvm_flash_cfg_t, magDeclination), &magDeclination);
   serialPortWrite(&serial_, message_buffer_, messageSize);
 
   uint32_t insDynModel = dynamic_model;
-  messageSize = is_comm_set_data(DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, insDynModel), sizeof(uint32_t), &insDynModel);
+  messageSize = is_comm_set_data(&s_comm_, DID_FLASH_CONFIG, sizeof(uint32_t), offsetof(nvm_flash_cfg_t, insDynModel), &insDynModel);
   serialPortWrite(&serial_, message_buffer_, messageSize);
 
   uint32_t sysCfgBits;
@@ -108,7 +116,7 @@ InertialSenseROS::InertialSenseROS() :
     sysCfgBits = SYS_CFG_BITS_RTK_ROVER;
   else if (RTK_mode == 2)
     sysCfgBits = SYS_CFG_BITS_RTK_BASE_STATION;
-  messageSize = is_comm_set_data(DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, sysCfgBits), sizeof(uint32_t), &sysCfgBits);
+  messageSize = is_comm_set_data(&s_comm_, DID_FLASH_CONFIG, sizeof(uint32_t), offsetof(nvm_flash_cfg_t, sysCfgBits), &sysCfgBits);
 
   // Set up the INS streams
   nh_private_.param<bool>("sINS", INS_.stream_on, true);
@@ -206,7 +214,7 @@ void InertialSenseROS::request_data(uint32_t did, float update_rate)
 
   else
   {
-    int messageSize = is_comm_get_data(did, 0, 0, 1000/update_rate);
+    int messageSize = is_comm_get_data(&s_comm_, did, 0, 0, 1000/update_rate);
     serialPortWrite(&serial_, message_buffer_, messageSize);
   }
 }
@@ -340,7 +348,7 @@ void InertialSenseROS::update()
 
   for (int i = 0; i < bytes_read; i++)
   {
-    uint32_t message_type = is_comm_parse(buffer[i]);
+    uint32_t message_type = is_comm_parse(&s_comm_, buffer[i]);
     switch (message_type)
     {
     case DID_NULL:
@@ -516,9 +524,30 @@ void InertialSenseROS::dtheta_vel_callback(const dual_imu_dtheta_dvel_t * const 
   dt_vel_.pub.publish(dthetavel_msg);
 }
 
-void InertialSenseROS::velocity_callback(const inertial_sense::VelocityInputConstPtr &msg)
+void InertialSenseROS::velocity_callback(const inertial_sense::VelocitySensorConstPtr &msg)
 {
-  velocity_sensor_t;
+  velocity_sensor_t data;
+  data.time_ms = (uint32_t)((msg->header.stamp.nsec)/1000000);
+  data.id = msg->id;
+  data.vel[0] = msg->vel.x;
+  data.vel[1] = msg->vel.y;
+  data.vel[2] = msg->vel.z;
+  data.cov[0] = msg->cov.x;
+  data.cov[1] = msg->cov.y;
+  data.cov[2] = msg->cov.z;
+  data.q[0] = msg->q.w;
+  data.q[1] = msg->q.x;
+  data.q[2] = msg->q.y;
+  data.q[3] = msg->q.z;
+  data.p[0] = msg->p.x;
+  data.p[1] = msg->p.y;
+  data.p[2] = msg->p.z;
+  data.valid[0] = msg->valid[0];
+  data.valid[1] = msg->valid[1];
+  data.valid[2] = msg->valid[2];
+
+  int num_bytes = is_comm_set_data(&s_comm_, DID_VELOCITY_MEASUREMENT, 0, sizeof(velocity_sensor_t), &data);
+  serialPortWrite(&serial_, message_buffer_, num_bytes);
 }
 
 int main(int argc, char**argv)
@@ -532,3 +561,4 @@ int main(int argc, char**argv)
   }
   return 0;
 }
+

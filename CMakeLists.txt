@@ -19,7 +19,7 @@ add_message_files(
   GPS.msg
   GPSInfo.msg
   DThetaVel.msg
-  VelocityInput.msg
+  VelocitySensor.msg
 )
 
 generate_messages(
