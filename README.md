@@ -2,8 +2,11 @@
 
 A ROS wrapper for the InertialSense uINS2 GPS-INS sensor
 
-## Known Issues
-GPS topic is messed up
+## NOTICE:
+
+This node is in beta.  Release is coming in the next few weeks.  Until then, you will need to load the latest beta firmware on your uINS
+
+(beta firmware link)[https://github.com/inertialsense/inertialsense_serial_protocol/releases/tag/v1.2-beta-0]
 
 ## Functionality
 - INS full odometry streaming
@@ -58,9 +61,9 @@ For setting parameters and topic remappings from a launch file, refer to the [Ro
    - frame id of all measurements
 * `~sINS` (bool, default: true)
    - Whether to stream the full 12-DOF odometry measurement
-* `~sINS_rate` (int, default: 100)
+* `~sINS_rate` (int, default: 200)
    - The rate of odometry measurement streaming (Hz)
-* `~sIMU`(bool, default: true)
+* `~sIMU`(bool, default: false)
    - Whether to stream IMU measurements
 * `~sIMU_rate`(int, default: 100)
    - The rate of IMU measurement streaming (Hz)
@@ -80,10 +83,10 @@ For setting parameters and topic remappings from a launch file, refer to the [Ro
     - If true, the node will stream both magnetometer measurements
 * `~smag_rate` (int, default: 100)
     - The rate of magnetometer streaming (Hz)
-* `~sdelta_theta_vel` (bool, default: false)
-    - If true, the node will stream coning and sculling integral versions of IMU measurements
-* `~sdelta_theta_vel_rate` (int, default: 100)
-    - The rate of coning and sculling integral message streaming
+* `~sprint_imu` (bool, default: false)
+    - If true, the node will stream preintegrated coning and sculling integral versions of IMU measurements
+* `~sprint_imu_rate` (int, default: 100)
+    - The rate of preintegrated coning and sculling integral message streaming
 
 * `~INS_rpy` (vector(3), default: {0, 0, 0})
     - The roll, pitch, yaw rotation from the INS frame to the output frame
@@ -128,5 +131,5 @@ For setting parameters and topic remappings from a launch file, refer to the [Ro
     + magnetic field measurement from magnetometer 2
 - `baro` (sensor_msgs/FluidPressure)
     + barometer measurements in kPa
-- `delta_theta_vel` (inertial_sense/DThetaVel)
-    + coning and sculling integral representation of IMU measurements
+- `preint_imu` (inertial_sense/DThetaVel)
+    + preintegrated coning and sculling representation of IMU measurements

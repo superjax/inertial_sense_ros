@@ -74,7 +74,7 @@ private:
   void baro_callback(const barometer_t* const msg);
 
   ros_stream_t dt_vel_;
-  void dtheta_vel_callback(const dual_imu_dtheta_dvel_t* const msg);
+  void dtheta_vel_callback(const preintegrated_imu_t * const msg);
 
 
   // Data to hold on to in between callbacks
@@ -89,6 +89,7 @@ private:
 
   // Serial Connection to uINS
 //  Serial* serial_;
+  is_comm_instance_t comm_;
   uint8_t message_buffer_[BUFFER_SIZE];
   serial_port_t serial_;
 

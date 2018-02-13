@@ -28,10 +28,13 @@ InertialSenseROS::InertialSenseROS() :
     ROS_INFO("Connected to uINS on \"%s\", at %d baud", port_.c_str(), baudrate_);
   }
 
-  is_comm_init(message_buffer_, sizeof(message_buffer_));
+  // Initialize the IS parser
+  comm_.buffer = message_buffer_;
+  comm_.bufferSize = sizeof(message_buffer_);
+  is_comm_init(&comm_);
 
   // Stop all broadcasts
-  uint32_t messageSize = is_comm_stop_broadcasts();
+  uint32_t messageSize = is_comm_stop_broadcasts(&comm_);
   serialPortWrite(&serial_, message_buffer_, messageSize);
 
   /// Configure the uINS
@@ -63,45 +66,45 @@ InertialSenseROS::InertialSenseROS() :
   insRotation[0] = INS_rpy[0];
   insRotation[1] = INS_rpy[1];
   insRotation[2] = INS_rpy[2];
-  messageSize = is_comm_set_data(DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, insRotation), sizeof(float[3]), insRotation);
+  messageSize = is_comm_set_data(&comm_, DID_FLASH_CONFIG, offsetof(nvm_flash_cfg_t, insRotation), sizeof(float[3]), insRotation);
   serialPortWrite(&serial_, message_buffer_, messageSize);
 
   float insOffset[3];
   insOffset[0] = INS_xyz[0];
   insOffset[1] = INS_xyz[1];
   insOffset[2] = INS_xyz[2];
-  messageSize = is_comm_set_data(DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, insOffset), sizeof(float[3]), insOffset);
+  messageSize = is_comm_set_data(&comm_, DID_FLASH_CONFIG, offsetof(nvm_flash_cfg_t, insOffset), sizeof(float[3]), insOffset);
   serialPortWrite(&serial_, message_buffer_, messageSize);
 
   float gps1AntOffset[3];
   gps1AntOffset[0] = GPS_ant_xyz[0];
   gps1AntOffset[1] = GPS_ant_xyz[1];
   gps1AntOffset[2] = GPS_ant_xyz[2];
-  messageSize = is_comm_set_data(DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, gps1AntOffset), sizeof(float[3]), gps1AntOffset);
+  messageSize = is_comm_set_data(&comm_, DID_FLASH_CONFIG, offsetof(nvm_flash_cfg_t, gps1AntOffset), sizeof(float[3]), gps1AntOffset);
   serialPortWrite(&serial_, message_buffer_, messageSize);
 
   float refLla[3];
   refLla[0] = GPS_ref_lla[0];
   refLla[1] = GPS_ref_lla[1];
   refLla[2] = GPS_ref_lla[2];
-  messageSize = is_comm_set_data(DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, refLla), sizeof(float[3]), refLla);
+  messageSize = is_comm_set_data(&comm_, DID_FLASH_CONFIG, offsetof(nvm_flash_cfg_t, refLla), sizeof(float[3]), refLla);
   serialPortWrite(&serial_, message_buffer_, messageSize);
 
   float magInclination = mag_inclination;
-  messageSize = is_comm_set_data(DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, magInclination), sizeof(float), &magInclination);
+  messageSize = is_comm_set_data(&comm_, DID_FLASH_CONFIG, offsetof(nvm_flash_cfg_t, magInclination), sizeof(float), &magInclination);
   serialPortWrite(&serial_, message_buffer_, messageSize);
 
   float magDeclination = mag_declination;
-  messageSize = is_comm_set_data(DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, magDeclination), sizeof(float), &magDeclination);
+  messageSize = is_comm_set_data(&comm_, DID_FLASH_CONFIG, offsetof(nvm_flash_cfg_t, magDeclination), sizeof(float), &magDeclination);
   serialPortWrite(&serial_, message_buffer_, messageSize);
 
   uint32_t insDynModel = dynamic_model;
-  messageSize = is_comm_set_data(DID_FLASH_CONFIG, OFFSETOF(nvm_flash_cfg_t, insDynModel), sizeof(uint32_t), &insDynModel);
+  messageSize = is_comm_set_data(&comm_, DID_FLASH_CONFIG, offsetof(nvm_flash_cfg_t, insDynModel), sizeof(uint32_t), &insDynModel);
   serialPortWrite(&serial_, message_buffer_, messageSize);
 
   // Set up the INS streams
   nh_private_.param<bool>("sINS", INS_.stream_on, true);
-  nh_private_.param<int>("sINS_rate", INS_.stream_rate, 1000);
+  nh_private_.param<int>("sINS_rate", INS_.stream_rate, 200);
   if (INS_.stream_on)
   {
     INS_.pub = nh_.advertise<nav_msgs::Odometry>("ins", 1);
@@ -112,7 +115,7 @@ InertialSenseROS::InertialSenseROS() :
 
   // Set up the IMU ROS stream
   nh_private_.param<bool>("sIMU", IMU_.stream_on, false);
-  nh_private_.param<int>("sIMU1_rate", IMU_.stream_rate, 100);
+  nh_private_.param<int>("sIMU_rate", IMU_.stream_rate, 100);
   if (IMU_.stream_on)
   {
     IMU_.pub = nh_.advertise<sensor_msgs::Imu>("imu1", 1);
@@ -126,7 +129,7 @@ InertialSenseROS::InertialSenseROS() :
   }
 
   // Set up the GPS ROS stream
-  nh_private_.param<bool>("sGPS", GPS_.stream_on, false);
+  nh_private_.param<bool>("sGPS", GPS_.stream_on, true);
   nh_private_.param<int>("sGPS_rate", GPS_.stream_rate, 10);
   if (GPS_.stream_on)
   {
@@ -164,12 +167,12 @@ InertialSenseROS::InertialSenseROS() :
   }
 
   // Set up the delta_theta_vel (coning and sculling integral) ROS stream
-  nh_private_.param<bool>("sdelta_theta_vel", dt_vel_.stream_on, false);
-  nh_private_.param<int>("sdelta_theta_vel_rate", dt_vel_.stream_rate, 100);
+  nh_private_.param<bool>("spreint_imu", dt_vel_.stream_on, false);
+  nh_private_.param<int>("spreint_imu_rate", dt_vel_.stream_rate, 100);
   if (dt_vel_.stream_on)
   {
-    dt_vel_.pub = nh_.advertise<inertial_sense::DThetaVel>("delta_theta_vel", 1);
-    request_data(DID_DUAL_IMU_DTHETA_DVEL, dt_vel_.stream_rate);
+    dt_vel_.pub = nh_.advertise<inertial_sense::DThetaVel>("preint_imu", 1);
+    request_data(DID_PREINTEGRATED_IMU, dt_vel_.stream_rate);
   }
 
   // ask for device info every 2 seconds
@@ -186,7 +189,7 @@ void InertialSenseROS::request_data(uint32_t did, float update_rate)
 
   else
   {
-    int messageSize = is_comm_get_data(did, 0, 0, 1000/update_rate);
+    int messageSize = is_comm_get_data(&comm_, did, 0, 0, 1000/update_rate);
     serialPortWrite(&serial_, message_buffer_, messageSize);
   }
 }
@@ -320,7 +323,7 @@ void InertialSenseROS::update()
 
   for (int i = 0; i < bytes_read; i++)
   {
-    uint32_t message_type = is_comm_parse(buffer[i]);
+    uint32_t message_type = is_comm_parse(&comm_, buffer[i]);
     switch (message_type)
     {
     case DID_NULL:
@@ -356,8 +359,8 @@ void InertialSenseROS::update()
       baro_callback((barometer_t*) message_buffer_);
       break;
 
-    case DID_DUAL_IMU_DTHETA_DVEL:
-      dtheta_vel_callback((dual_imu_dtheta_dvel_t*) message_buffer_);
+    case DID_PREINTEGRATED_IMU:
+      dtheta_vel_callback((preintegrated_imu_t*) message_buffer_);
       break;
     }
   }
@@ -455,7 +458,7 @@ void InertialSenseROS::baro_callback(const barometer_t * const msg)
   baro_.pub.publish(baro_msg);
 }
 
-void InertialSenseROS::dtheta_vel_callback(const dual_imu_dtheta_dvel_t * const msg)
+void InertialSenseROS::dtheta_vel_callback(const preintegrated_imu_t * const msg)
 {
   inertial_sense::DThetaVel dthetavel_msg;
 
