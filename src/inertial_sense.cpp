@@ -279,7 +279,7 @@ void InertialSenseROS::IMU_callback(const dual_imu_t* const msg)
 
 void InertialSenseROS::GPS_callback(const gps_nav_t * const msg)
 {
-  if (!GPS_info_.stream_on )
+  if (!GPS_.stream_on )
     return;
   uint64_t seconds = GPS_UTC_OFFSET + msg->week*7*24*3600 + floor(msg->timeOfWeekMs/1e3);
   uint64_t nsec = (msg->timeOfWeekMs/1e3 - floor(msg->timeOfWeekMs/1e3))*1e9;
