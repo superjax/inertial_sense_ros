@@ -9,7 +9,7 @@
 InertialSenseROS::InertialSenseROS() :
   nh_(), nh_private_("~"), IMU_offset_(0,0), GPS_to_week_offset_(0)
 {
-  nh_private_.param<std::string>("port", port_, "/dev/ttyUSB0");
+  nh_private_.param<std::string>("port", port_, "/dev/ttyUSB1");
   nh_private_.param<int>("baudrate", baudrate_, 3000000);
   nh_private_.param<std::string>("frame_id", frame_id_, "body");
 
@@ -53,7 +53,7 @@ InertialSenseROS::InertialSenseROS() :
     nh_private_.getParam("GPS_ant_xyz", GPS_ant_xyz);
   if (nh_private_.hasParam("GPS_ref_lla"))
     nh_private_.getParam("GPS_ref_lla", GPS_ref_lla);
-
+  
   float mag_inclination, mag_declination ,mag_magnitude;
   nh_private_.param<float>("inclination", mag_inclination, 1.14878541071);
   nh_private_.param<float>("declination", mag_declination, 0.20007290992);
@@ -83,11 +83,13 @@ InertialSenseROS::InertialSenseROS() :
   messageSize = is_comm_set_data(&comm_, DID_FLASH_CONFIG, offsetof(nvm_flash_cfg_t, gps1AntOffset), sizeof(float[3]), gps1AntOffset);
   serialPortWrite(&serial_, message_buffer_, messageSize);
 
-  float refLla[3];
+  double refLla[3];
   refLla[0] = GPS_ref_lla[0];
   refLla[1] = GPS_ref_lla[1];
   refLla[2] = GPS_ref_lla[2];
-  messageSize = is_comm_set_data(&comm_, DID_FLASH_CONFIG, offsetof(nvm_flash_cfg_t, refLla), sizeof(float[3]), refLla);
+  ROS_ASSERT_MSG((fabs(refLla[0]) <= (C_RAD2DEG*M_PI/2.0) && fabs(refLla[1]) <= (C_RAD2DEG*M_PI) && fabs(refLla[2]) <= (50000.0)), \
+          "Supplied reference LLa {%f, %f, %f} out of range, units are {deg, deg, m}", refLla[0], refLla[1], refLla[2]);
+  messageSize = is_comm_set_data(&comm_, DID_FLASH_CONFIG, offsetof(nvm_flash_cfg_t, refLla), 24, refLla);
   serialPortWrite(&serial_, message_buffer_, messageSize);
 
   float magInclination = mag_inclination;
