@@ -10,8 +10,8 @@ find_package(catkin REQUIRED COMPONENTS
 )
 find_package(Threads)
 
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu11 -fms-extensions -O3 -Wl,--no-as-needed")
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11 -fms-extensions -O3 -Wl,--no-as-needed")
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu11")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11")
 
 add_message_files(
   FILES

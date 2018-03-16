@@ -17,8 +17,9 @@
 #include "inertial_sense/DThetaVel.h"
 #include "nav_msgs/Odometry.h"
 
-# define GPS_UTC_OFFSET 315964782 // as of 2017
-
+# define GPS_UNIX_OFFSET 315964800 // GPS time started on 6/1/1980 while UNIX time started 1/1/1970
+# define LEAP_SECONDS 18 // GPS time does not have leap seconds, UNIX does (as of 1/1/2017 - next one is probably in 2020 sometime unless there is some crazy earthquake or nuclear blast)
+# define UNIX_TO_GPS_OFFSET (GPS_UNIX_OFFSET - LEAP_SECONDS)
 
 class InertialSenseROS
 {
@@ -32,10 +33,9 @@ private:
   // Serial Port Configuration
   std::string port_;
   int baudrate_;
-  ros::Duration IMU_offset_;
-  bool first_IMU_message_ = true;
-  bool got_GPS_fix_ = false;
-  double GPS_to_week_offset_;
+  ros::Duration INS_local_offset_;
+  double GPS_towOffset_; // The offset between GPS time-of-week and local time on the uINS
+  uint64_t GPS_week_;
 
   nvm_flash_cfg_t flash_cfg_;
 
@@ -78,7 +78,6 @@ private:
   nav_msgs::Odometry odom_msg;
   inertial_sense::GPS gps_msg;
   inertial_sense::GPSInfo gps_info_msg;
-  uint64_t GPS_week_seconds;
 
 
   // Data Struct received from uINS
