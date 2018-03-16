@@ -87,7 +87,7 @@ InertialSenseROS::InertialSenseROS() :
   refLla[0] = GPS_ref_lla[0];
   refLla[1] = GPS_ref_lla[1];
   refLla[2] = GPS_ref_lla[2];
-  ROS_ASSERT_MSG((fabs(refLla[0]) <= (C_RAD2DEG*M_PI/2.0) && fabs(refLla[1]) <= (C_RAD2DEG*M_PI) && fabs(refLla[2]) <= (50000.0)), \
+  ROS_ERROR_COND((fabs(refLla[0]) > (C_RAD2DEG*M_PI/2.0) || fabs(refLla[1]) > (C_RAD2DEG*M_PI) || fabs(refLla[2]) > (50000.0)), \
           "Supplied reference LLa {%f, %f, %f} out of range, units are {deg, deg, m}", refLla[0], refLla[1], refLla[2]);
   messageSize = is_comm_set_data(&comm_, DID_FLASH_CONFIG, offsetof(nvm_flash_cfg_t, refLla), 24, refLla);
   serialPortWrite(&serial_, message_buffer_, messageSize);
