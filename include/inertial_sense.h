@@ -14,10 +14,13 @@
 #include "sensor_msgs/FluidPressure.h"
 #include "inertial_sense/GPS.h"
 #include "inertial_sense/GPSInfo.h"
-#include "inertial_sense/DThetaVel.h"
+#include "inertial_sense/PreIntIMU.h"
 #include "nav_msgs/Odometry.h"
+#include "std_srvs/Trigger.h"
 
-# define GPS_UTC_OFFSET 315964782 // as of 2017
+# define GPS_UNIX_OFFSET 315964800 // GPS time started on 6/1/1980 while UNIX time started 1/1/1970 this is the difference between those in seconds
+# define LEAP_SECONDS 18 // GPS time does not have leap seconds, UNIX does (as of 1/1/2017 - next one is probably in 2020 sometime unless there is some crazy earthquake or nuclear blast) 
+# define UNIX_TO_GPS_OFFSET (GPS_UNIX_OFFSET - LEAP_SECONDS) 
 
 #define BUFFER_SIZE 2048
 
@@ -30,16 +33,17 @@ public:
   void update();
 
 private:
-
+  
+  template<typename T> void set_vector_flash_config(std::string param_name, uint32_t size, uint32_t offset);
+  template <typename T>  void set_flash_config(std::string param_name, uint32_t offset, T def);
   // Serial Port Configuration
   std::string port_;
   int baudrate_;
-  ros::Duration IMU_offset_;
-  bool first_IMU_message_ = true;
-  bool got_GPS_fix_ = false;
-  double GPS_to_week_offset_;
-
-  nvm_flash_cfg_t flash_cfg_;
+  
+  // Time sync variables
+  ros::Duration INS_local_offset_; 
+  double GPS_towOffset_; // The offset between GPS time-of-week and local time on the uINS 
+  uint64_t GPS_week_; 
 
   std::string frame_id_;
 
@@ -74,7 +78,12 @@ private:
   void baro_callback(const barometer_t* const msg);
 
   ros_stream_t dt_vel_;
-  void dtheta_vel_callback(const preintegrated_imu_t * const msg);
+  void preint_IMU_callback(const preintegrated_imu_t * const msg);
+  
+  ros::ServiceServer mag_cal_srv_;
+  ros::ServiceServer multi_mag_cal_srv_;
+  bool perform_mag_cal_srv_callback(std_srvs::Trigger::Request & req, std_srvs::Trigger::Response & res);
+  bool perform_multi_mag_cal_srv_callback(std_srvs::Trigger::Request & req, std_srvs::Trigger::Response & res);
 
 
   // Data to hold on to in between callbacks

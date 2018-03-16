@@ -11,21 +11,16 @@ uint32 GPS_STATUS_FIX_TYPE_RESERVED2            = 1792
 uint32 GPS_STATUS_FIX_STATUS_FIX_OK             = 65536
 
 Header header
-int8 num_sat
-uint32 fix_type
-int32 cno
-float64 latitude
-float64 longitude
-float64 altitude
-float32 hMSL
-float32 hAcc
-float32 vAcc
-float32 pDop
-geometry_msgs/Vector3 linear_velocity
-float32 ground_speed_2d
-float32 ground_speed_3d
-float32 sAcc
-float32 course
-float32 cAcc
-uint32 messages_per_second
+int8 num_sat 							# Number of satellites used in solution
+uint32 fix_type 						# Fix type, one of STATUS_FIX_TYPE flags
+int32 cno 								# mean carrier noise ratio (dBHz)
+float64 latitude 						# latitude (degrees) 
+float64 longitude						# longitude (degrees)
+float64 altitude						# height above ellipsoid (not MSL) (m)
+geometry_msgs/Vector3 linear_velocity 	# Velocity (m/s) in NED
+float32 hMSL							# height above MSL
+float32 hAcc							# horizontal accuracy
+float32 vAcc							# vertical accuracy
+float32 sAcc							# speed accuracy (m/s)
+float32 pDop							# Position Dilution of Precision (m)	
 

@@ -18,7 +18,7 @@ add_message_files(
   SatInfo.msg
   GPS.msg
   GPSInfo.msg
-  DThetaVel.msg
+  PreIntIMU.msg
 )
 
 generate_messages(
