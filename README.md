@@ -27,7 +27,7 @@ This is a ROS package, with the InertialSenseSDK as a submodule, so just create 
 mkdir -p catkin_ws/src
 cd catkin_ws/src
 catkin_init_workspace
-git clone https://superjax/inertial_sense
+git clone https://inertialsense/inertial_sense
 cd inertial_sense
 git submodule update --init --recursive
 cd ../..
@@ -49,7 +49,7 @@ rosparam set /inertial_sense_node/GPS_ref_lla "[40.25, -111.67, 1556.59]"
 rosrun inertial_sense inertial_sense_node
 ```
 
-For setting parameters and topic remappings from a launch file, refer to the [Roslaunch for Larger Projects](http://wiki.ros.org/roslaunch/Tutorials/Roslaunch%20tips%20for%20larger%20projects) page.
+For setting parameters and topic remappings from a launch file, refer to the [Roslaunch for Larger Projects](http://wiki.ros.org/roslaunch/Tutorials/Roslaunch%20tips%20for%20larger%20projects) page, or the sample `launch/test.launch` file.
 
 
 ## Parameters
@@ -59,33 +59,19 @@ For setting parameters and topic remappings from a launch file, refer to the [Ro
     - baudrate of serial communication
 * `~frame_id` (string, default "body")
    - frame id of all measurements
-* `~sINS` (bool, default: true)
-   - Whether to stream the full 12-DOF odometry measurement
-* `~sINS_rate` (int, default: 200)
+* `~INS_rate` (int, default: 200)
    - The rate of odometry measurement streaming (Hz)
-* `~sIMU`(bool, default: false)
-   - Whether to stream IMU measurements
-* `~sIMU_rate`(int, default: 100)
+* `~IMU_rate`(int, default: 100)
    - The rate of IMU measurement streaming (Hz)
-* `~sGPS`(bool, default: true)
-   - If true, the node will stream GPS measurements
-* `~sGPS_rate`(int, default: 10)
+* `~GPS_rate`(int, default: 0)
    - The rate of GPS message streaming (Hz)
-* `~sGPS_info`(bool, default: true)
-   - If true, the node will stream GPS measurements
-* `~sGPS_info_rate`(int, default: 10)
+* `~GPS_info_rate`(int, default: 0)
     - The rate of GPS message streaming (Hz)
-* `~sbaro` (bool default: true)
-    - If true, the node will stream barometer measurements
-* `~sbaro_rate` (int, default: 100)
+* `~baro_rate` (int, default: 0)
     - The rate of barometer streaming (Hz)
-* `~smag` (bool, default: true)
-    - If true, the node will stream both magnetometer measurements
-* `~smag_rate` (int, default: 100)
+* `~mag_rate` (int, default: 0)
     - The rate of magnetometer streaming (Hz)
-* `~sprint_imu` (bool, default: false)
-    - If true, the node will stream preintegrated coning and sculling integral versions of IMU measurements
-* `~sprint_imu_rate` (int, default: 100)
+* `~preint_imu_rate` (int, default: 0)
     - The rate of preintegrated coning and sculling integral message streaming
 
 * `~INS_rpy` (vector(3), default: {0, 0, 0})
@@ -100,8 +86,6 @@ For setting parameters and topic remappings from a launch file, refer to the [Ro
     - The inclination of earth's magnetic field (radians)
 * `~declination` (float, default: 0.20007290992)
     - The declination of earth's magnetic field (radians)
-* `mag_magnitude` (float, default: 1.0)
-    - Earth magnetic field (magnetic north) magnitude (nominally 1)
 * `dynamic_model` (int, default: 8)
     - Dynamic model used in internal filter of uINS.
        - 0 = portable
@@ -115,21 +99,27 @@ For setting parameters and topic remappings from a launch file, refer to the [Ro
        - 9 = wrist
 
 ## Topics
-- `imu1/`(sensor_msgs/Imu)
-    - Imu measurements from IMU1 (NED frame)
-- `imu2/`(sensor_msgs/Imu)
-    - Imu measurements from IMU2 (NED frame)
 - `ins/`(nav_msgs/Odometry)
     - full 12-DOF measurements from onboard estimator (NED frame)
+- `imu1/`(sensor_msgs/Imu)
+    - Raw Imu measurements from IMU1 (NED frame)
+- `imu2/`(sensor_msgs/Imu)
+    - Raw Imu measurements from IMU2 (NED frame)
 - `gps/`(inertial_sense/GPS)
-    - full GPS measurement from onbaord GPS
+    - unfiltered GPS measurements from onboard GPS unit
 - `gps/info`(inertial_sense/GPSInfo)
     - sattelite information and carrier noise ratio array for each sattelite
 - `mag1` (sensor_msgs/MagneticField)
-    + magnetic field measurement from magnetometer 1
+    - Raw magnetic field measurement from magnetometer 1
 - `mag2` (sensor_msgs/MagneticField)
-    + magnetic field measurement from magnetometer 2
+    - Raw magnetic field measurement from magnetometer 2
 - `baro` (sensor_msgs/FluidPressure)
-    + barometer measurements in kPa
+    - Raw barometer measurements in kPa
 - `preint_imu` (inertial_sense/DThetaVel)
-    + preintegrated coning and sculling representation of IMU measurements
+    - preintegrated coning and sculling integrals of IMU measurements
+
+## Services
+- `single_axis_mag_cal` (std_srvs/Trigger)
+  - Put INS into single axis magnetometer calibration mode.  This is typically used if the uINS is rigidly mounted to a heavy vehicle, such as a car. After this call, the uINS must perform a single orbit around one axis (i.g. drive in a circle) to calibrate the mag [more info](http://docs.inertialsense.com/user-manual/Setup_Integration/magnetometer_calibration/)
+- `multi_axis_mag_cal` (std_srvs/Trigger)
+  - Put INS into multi axis magnetometer calibration mode.  This is typically used if the uINS is not mounted to a vehicle, or a lightweight vehicle such as a drone.  Simply rotate the uINS around all axes until the light on the uINS turns blue [more info](http://docs.inertialsense.com/user-manual/Setup_Integration/magnetometer_calibration/)

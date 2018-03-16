@@ -27,8 +27,8 @@ InertialSenseROS::InertialSenseROS() :
   }
   
   /// Start Up ROS service servers
-  mag_cal_srv_ = nh_.advertiseService("calibrate_mag", &InertialSenseROS::perform_mag_cal_srv_callback, this);
-  multi_mag_cal_srv_ = nh_.advertiseService("calibrate_mag", &InertialSenseROS::perform_multi_mag_cal_srv_callback, this);
+  mag_cal_srv_ = nh_.advertiseService("single_axis_mag_cal", &InertialSenseROS::perform_mag_cal_srv_callback, this);
+  multi_mag_cal_srv_ = nh_.advertiseService("multi_axis_mag_cal", &InertialSenseROS::perform_multi_mag_cal_srv_callback, this);
 
   // Initialize the IS parser
   comm_.buffer = message_buffer_;
@@ -54,9 +54,8 @@ InertialSenseROS::InertialSenseROS() :
   /////////////////////////////////////////////////////////
   /// DATA STREAMS CONFIGURATION
   /////////////////////////////////////////////////////////
-  nh_private_.param<bool>("sINS", INS_.stream_on, true);
-  nh_private_.param<int>("sINS_rate", INS_.stream_rate, 200);
-  if (INS_.stream_on)
+  nh_private_.param<int>("INS_rate", INS_.stream_rate, 200);
+  if (INS_.stream_rate > 0)
   {
     INS_.pub = nh_.advertise<nav_msgs::Odometry>("ins", 1);
     request_data(DID_INS_1, INS_.stream_rate);
@@ -65,14 +64,13 @@ InertialSenseROS::InertialSenseROS() :
   }
 
   // Set up the IMU ROS stream
-  nh_private_.param<bool>("sIMU", IMU_.stream_on, false);
-  nh_private_.param<int>("sIMU_rate", IMU_.stream_rate, 100);
-  if (IMU_.stream_on)
+  nh_private_.param<int>("IMU_rate", IMU_.stream_rate, 100);
+  if (IMU_.stream_rate > 0)
   {
     IMU_.pub = nh_.advertise<sensor_msgs::Imu>("imu1", 1);
     IMU_.pub2 = nh_.advertise<sensor_msgs::Imu>("imu2", 1);
     uint32_t update_rate = IMU_.stream_rate;
-    if (INS_.stream_on)
+    if (INS_.stream_rate > 0)
     {
       update_rate = (INS_.stream_rate > IMU_.stream_rate) ? 1000/IMU_.stream_rate : update_rate;
     }
@@ -80,24 +78,21 @@ InertialSenseROS::InertialSenseROS() :
   }
 
   // Set up the GPS ROS stream - we always need GPS information for time sync, just don't always need to publish it
-  nh_private_.param<bool>("sGPS", GPS_.stream_on, true);
-  nh_private_.param<int>("sGPS_rate", GPS_.stream_rate, 10);
+  nh_private_.param<int>("GPS_rate", GPS_.stream_rate, 0);
   GPS_.pub = nh_.advertise<inertial_sense::GPS>("gps", 1);
   request_data(DID_GPS_NAV, GPS_.stream_rate);
 
   // Set up the GPS info ROS stream
-  nh_private_.param<bool>("sGPS_info", GPS_info_.stream_on, false);
-  nh_private_.param<int>("sGPS_info_rate", GPS_info_.stream_rate, 10);
-  if (GPS_info_.stream_on)
+  nh_private_.param<int>("GPS_info_rate", GPS_info_.stream_rate, 0);
+  if (GPS_info_.stream_rate > 0)
   {
     GPS_info_.pub = nh_.advertise<inertial_sense::GPSInfo>("gps/info", 1);
     request_data(DID_GPS1_SAT, GPS_info_.stream_rate);
   }
 
   // Set up the magnetometer ROS stream
-  nh_private_.param<bool>("smag", mag_.stream_on, false);
-  nh_private_.param<int>("smag_rate", mag_.stream_rate, 100);
-  if (mag_.stream_on)
+  nh_private_.param<int>("mag_rate", mag_.stream_rate, 0);
+  if (mag_.stream_rate > 0)
   {
     mag_.pub = nh_.advertise<sensor_msgs::MagneticField>("mag1", 1);
     mag_.pub2 = nh_.advertise<sensor_msgs::MagneticField>("mag2", 1);
@@ -106,18 +101,16 @@ InertialSenseROS::InertialSenseROS() :
   }
 
   // Set up the barometer ROS stream
-  nh_private_.param<bool>("sbaro", baro_.stream_on, false);
-  nh_private_.param<int>("sbaro_rate", baro_.stream_rate, 100);
-  if (baro_.stream_on)
+  nh_private_.param<int>("baro_rate", baro_.stream_rate, 0);
+  if (baro_.stream_rate > 0)
   {
     baro_.pub = nh_.advertise<sensor_msgs::FluidPressure>("baro", 1);
     request_data(DID_BAROMETER, baro_.stream_rate);
   }
 
   // Set up the preintegrated IMU (coning and sculling integral) ROS stream
-  nh_private_.param<bool>("spreint_imu", dt_vel_.stream_on, false);
-  nh_private_.param<int>("spreint_imu_rate", dt_vel_.stream_rate, 100);
-  if (dt_vel_.stream_on)
+  nh_private_.param<int>("preint_imu_rate", dt_vel_.stream_rate, 0);
+  if (dt_vel_.stream_rate > 0)
   {
     dt_vel_.pub = nh_.advertise<inertial_sense::PreIntIMU>("preint_imu", 1);
     request_data(DID_PREINTEGRATED_IMU, dt_vel_.stream_rate);
@@ -136,7 +129,9 @@ void InertialSenseROS::set_vector_flash_config(std::string param_name, uint32_t 
   for (int i = 0; i < size; i++)
   {
     v[i] = tmp[i];
-  }  
+  }
+  
+  
   int messageSize = is_comm_set_data(&comm_, DID_FLASH_CONFIG, offset, sizeof(v), v);
   serialPortWrite(&serial_, message_buffer_, messageSize);
 }
@@ -243,7 +238,7 @@ void InertialSenseROS::IMU_callback(const dual_imu_t* const msg)
   imu2_msg.linear_acceleration.y = msg->I[1].acc[1];
   imu2_msg.linear_acceleration.z = msg->I[1].acc[2];
 
-  if (IMU_.stream_on)
+  if (IMU_.stream_rate > 0)
   {
     IMU_.pub.publish(imu1_msg);
     IMU_.pub2.publish(imu2_msg);
@@ -253,7 +248,7 @@ void InertialSenseROS::IMU_callback(const dual_imu_t* const msg)
 
 void InertialSenseROS::GPS_callback(const gps_nav_t * const msg)
 {
-  if (GPS_.stream_on )
+  if (GPS_.stream_rate > 0 )
   {
     uint64_t seconds = UNIX_TO_GPS_OFFSET + msg->week*7*24*3600 + floor(msg->timeOfWeekMs/1e3);
     uint64_t nsec = (msg->timeOfWeekMs/1e3 - floor(msg->timeOfWeekMs/1e3))*1e9;

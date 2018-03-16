@@ -50,7 +50,6 @@ private:
   // ROS Stream handling
   typedef struct
   {
-    bool stream_on;
     int stream_rate;
     ros::Publisher pub;
     ros::Publisher pub2;
