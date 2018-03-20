@@ -100,6 +100,8 @@ If GPS is available, all header timestamps are calculated with respect to the GP
        - 7 = airborne 2G
        - 8 = airborne 4G
        - 9 = wrist
+* `~ser1_baud_rate` (int, default: 115200)
+    - baud rate for serial1 port used for external NMEA messaging (located on H6-5) [serial port hardware connections](http://docs.inertialsense.com/user-manual/Setup_Integration/hardware_integration/#pin-definition)
 * `~NMEA_rate` (int, default: 0)
     - Rate to publish NMEA messages
 * `~NMEA_configuration` (int, default: 0)
@@ -109,7 +111,7 @@ If GPS is available, all header timestamps are calculated with respect to the GP
       - GPGSA = 0x04
       - GPRMC = 0x08
 * `~NMEA_ports` (int, default: 0)
-    - bitmask to enable NMEA message on serial ports (bitwise OR to enable both ports) [serial port hardware connections](http://docs.inertialsense.com/user-manual/Setup_Integration/hardware_integration/#pin-definition)
+    - bitmask to enable NMEA message on serial ports (bitwise OR to enable both ports) 
       - Ser0 (USB/H4-4)  = 0x01 
       - Ser1 (H6-5) = 0x02 
 

@@ -50,6 +50,7 @@ InertialSenseROS::InertialSenseROS() :
   set_flash_config<float>("inclination", offsetof(nvm_flash_cfg_t, magInclination), 1.14878541071f);  
   set_flash_config<float>("declination", offsetof(nvm_flash_cfg_t, magDeclination), 0.20007290992f);
   set_flash_config<int>("dynamic_model", offsetof(nvm_flash_cfg_t, insDynModel), 8);
+  set_flash_config<int>("ser1_baud_rate", offsetof(nvm_flash_cfg_t, ser1BaudRate), 115200);
 
   /////////////////////////////////////////////////////////
   /// DATA STREAMS CONFIGURATION
@@ -120,7 +121,6 @@ InertialSenseROS::InertialSenseROS() :
   int NMEA_rate = nh_private_.param<int>("NMEA_rate", 0);
   int NMEA_message_configuration = nh_private_.param<int>("NMEA_configuration", 0x00);
   int NMEA_message_ports = nh_private_.param<int>("NMEA_ports", 0x00);
-  std::cout << "NMEA config " << NMEA_message_configuration << std::endl;
   ascii_msgs_t msgs = {};
   msgs.options = (NMEA_message_ports & NMEA_SER0) ? RMC_OPTIONS_PORT_SER0 : 0; // output on serial 0
   msgs.options |= (NMEA_message_ports & NMEA_SER1) ? RMC_OPTIONS_PORT_SER1 : 0; // output on serial 1

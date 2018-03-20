@@ -17,6 +17,7 @@
                            INS_xyz: [1, 0, 0],
                            GPS_ant_xyz: [1, 1, 1],
                            GPS_ref_lla: [40.25, -111.67, 1556.59],
+                           serial1_baud_rate: 115200,
                            NMEA_rate: 200,
                            NMEA_configuration: 0x0F,
                            NMEA_ports: 0x02
