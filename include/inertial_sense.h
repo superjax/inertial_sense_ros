@@ -27,6 +27,16 @@
 
 class InertialSenseROS //: SerialListener
 {
+  typedef enum
+  {
+    NMEA_GPGGA = 0x01,
+    NMEA_GPGLL = 0x02,
+    NMEA_GPGSA = 0x04,
+    NMEA_GPRMC = 0x08,
+    NMEA_SER0 = 0x01,
+    NMEA_SER1 = 0x02
+  } NMEA_message_config_t;
+      
 public:
   InertialSenseROS();
   void callback(p_data_t* data);

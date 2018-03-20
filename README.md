@@ -54,13 +54,13 @@ For setting parameters and topic remappings from a launch file, refer to the [Ro
 
 ## Parameters
 * `~port` (string, default: "/dev/ttyUSB0")
-    - Serial port to connect to
+  - Serial port to connect to
 * `~baud` (int, default: 3000000)
-    - baudrate of serial communication
+  - baudrate of serial communication
 * `~frame_id` (string, default "body")
-   - frame id of all measurements
+  - frame id of all measurements
 * `~INS_rate` (int, default: 200)
-   - The rate of odometry measurement streaming (Hz)
+  - The rate of odometry measurement streaming (Hz)
 * `~IMU_rate`(int, default: 100)
    - The rate of IMU measurement streaming (Hz)
 * `~GPS_rate`(int, default: 0)
@@ -73,7 +73,6 @@ For setting parameters and topic remappings from a launch file, refer to the [Ro
     - The rate of magnetometer streaming (Hz)
 * `~preint_imu_rate` (int, default: 0)
     - The rate of preintegrated coning and sculling integral message streaming
-
 * `~INS_rpy` (vector(3), default: {0, 0, 0})
     - The roll, pitch, yaw rotation from the INS frame to the output frame
 * `~INS_xyz` (vector(3), default: {0, 0, 0})
@@ -86,7 +85,7 @@ For setting parameters and topic remappings from a launch file, refer to the [Ro
     - The inclination of earth's magnetic field (radians)
 * `~declination` (float, default: 0.20007290992)
     - The declination of earth's magnetic field (radians)
-* `dynamic_model` (int, default: 8)
+* `~dynamic_model` (int, default: 8)
     - Dynamic model used in internal filter of uINS.
        - 0 = portable
        - 2 = stationary
@@ -97,6 +96,18 @@ For setting parameters and topic remappings from a launch file, refer to the [Ro
        - 7 = airborne 2G
        - 8 = airborne 4G
        - 9 = wrist
+* `~NMEA_rate` (int, default: 0)
+    - Rate to publish NMEA messages
+* `~NMEA_configuration` (int, default: 0)
+    - bitmask to enable NMEA messages (bitwise OR to enable multiple message streams).
+      - GPGGA = 0x01
+      - GPGLL = 0x02
+      - GPGSA = 0x04
+      - GPRMC = 0x08
+* `~NMEA_ports` (int, default: 0)
+    - bitmask to enable NMEA message on serial ports (bitwise OR to enable both ports) [serial port hardware connections](http://docs.inertialsense.com/user-manual/Setup_Integration/hardware_integration/#pin-definition)
+      - Ser0 (USB/H4-4)  = 0x01 
+      - Ser1 (H6-5) = 0x02 
 
 ## Topics
 - `ins/`(nav_msgs/Odometry)

@@ -115,6 +115,20 @@ InertialSenseROS::InertialSenseROS() :
     dt_vel_.pub = nh_.advertise<inertial_sense::PreIntIMU>("preint_imu", 1);
     request_data(DID_PREINTEGRATED_IMU, dt_vel_.stream_rate);
   }
+  
+  // ASCII Streams
+  int NMEA_rate = nh_.param<int>("NMEA_rate", 0);
+  int NMEA_message_configuration = nh_.param<int>("NMEA_configuration", 0x00);
+  int NMEA_message_ports = nh_.param<int>("NMEA_ports", 0x00);
+  ascii_msgs_t msgs;
+  msgs.options = (NMEA_message_ports & NMEA_SER0) ? RMC_OPTIONS_PORT_SER0 : 0; // output on serial 0
+  msgs.options |= (NMEA_message_ports & NMEA_SER1) ? RMC_OPTIONS_PORT_SER1 : 0; // output on serial 1
+  msgs.gpgga = (NMEA_message_configuration & NMEA_GPGGA) ? NMEA_rate : 0;
+  msgs.gpgll = (NMEA_message_configuration & NMEA_GPGLL) ? NMEA_rate : 0;
+  msgs.gpgsa = (NMEA_message_configuration & NMEA_GPGSA) ? NMEA_rate : 0;
+  msgs.gprmc = (NMEA_message_configuration & NMEA_GPRMC) ? NMEA_rate : 0;
+  messageSize = is_comm_set_data(&comm_, DID_ASCII_BCAST_PERIOD, 0, 0, &msgs);
+  serialPortWrite(&serial_, message_buffer_, messageSize);  
 
   // ask for device info every 2 seconds
   request_data(DID_DEV_INFO, 0.5);
