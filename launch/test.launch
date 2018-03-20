@@ -1,4 +1,4 @@
-<launch>
+  <launch>
 	<rosparam subst_value="True">
 
     inertial_sense_node: { port: "/dev/ttyUSB0",
@@ -18,7 +18,7 @@
                            GPS_ant_xyz: [1, 1, 1],
                            GPS_ref_lla: [40.25, -111.67, 1556.59],
                            NMEA_rate: 200,
-                           NMEA_configuration : 0x0F,
+                           NMEA_configuration: 0x0F,
                            NMEA_ports: 0x02
                          }
     </rosparam>

@@ -51,6 +51,10 @@ rosrun inertial_sense inertial_sense_node
 
 For setting parameters and topic remappings from a launch file, refer to the [Roslaunch for Larger Projects](http://wiki.ros.org/roslaunch/Tutorials/Roslaunch%20tips%20for%20larger%20projects) page, or the sample `launch/test.launch` file.
 
+## Time Stamps
+
+If GPS is available, all header timestamps are calculated with respect to the GPS clock but are translated into UNIX time to be consistent with the other topics in a ROS network.  If GPS is unvailable, then message headers are assigned a timestamp when they arrive at the computer with ROS time.  In an ideal setting, there should be no jump in timestamps when GPS is first acquired, because the timestamps should be identical, however, due to inaccuracies in system time, there will likely be a small adjustment to message timestamps when GPS is first acquired.
+
 
 ## Parameters
 * `~port` (string, default: "/dev/ttyUSB0")
