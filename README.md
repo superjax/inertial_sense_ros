@@ -55,28 +55,52 @@ For setting parameters and topic remappings from a launch file, refer to the [Ro
 
 If GPS is available, all header timestamps are calculated with respect to the GPS clock but are translated into UNIX time to be consistent with the other topics in a ROS network.  If GPS is unvailable, then message headers are assigned a timestamp when they arrive at the computer with ROS time.  In an ideal setting, there should be no jump in timestamps when GPS is first acquired, because the timestamps should be identical, however, due to inaccuracies in system time, there will likely be a small adjustment to message timestamps when GPS is first acquired.
 
+## Topics
+
+Topics are enabled and disabled using parameters.  By default, only the `ins/` topic is published to save processor time in serializing unecessary messages.
+- `ins/`(nav_msgs/Odometry)
+    - full 12-DOF measurements from onboard estimator (NED frame)
+- `imu/`(sensor_msgs/Imu)
+    - Raw Imu measurements from IMU1 (NED frame)
+- `gps/`(inertial_sense/GPS)
+    - unfiltered GPS measurements from onboard GPS unit
+- `gps/info`(inertial_sense/GPSInfo)
+    - sattelite information and carrier noise ratio array for each sattelite
+- `mag` (sensor_msgs/MagneticField)
+    - Raw magnetic field measurement from magnetometer 1
+- `baro` (sensor_msgs/FluidPressure)
+    - Raw barometer measurements in kPa
+- `preint_imu` (inertial_sense/DThetaVel)
+    - preintegrated coning and sculling integrals of IMU measurements
 
 ## Parameters
+
 * `~port` (string, default: "/dev/ttyUSB0")
   - Serial port to connect to
 * `~baud` (int, default: 3000000)
   - baudrate of serial communication
 * `~frame_id` (string, default "body")
   - frame id of all measurements
-* `~INS_rate` (int, default: 200)
-  - The rate of odometry measurement streaming (Hz)
-* `~IMU_rate`(int, default: 100)
-   - The rate of IMU measurement streaming (Hz)
-* `~GPS_rate`(int, default: 0)
-   - The rate of GPS message streaming (Hz)
-* `~GPS_info_rate`(int, default: 0)
-    - The rate of GPS message streaming (Hz)
-* `~baro_rate` (int, default: 0)
-    - The rate of barometer streaming (Hz)
-* `~mag_rate` (int, default: 0)
-    - The rate of magnetometer streaming (Hz)
-* `~preint_imu_rate` (int, default: 0)
-    - The rate of preintegrated coning and sculling integral message streaming
+
+**Topic Configuration**
+* `~navigation_dt_ms` (int, default: 250)
+   - milliseconds between internal navigation filter updates (min=2ms/500Hz).  This is also determines the rate at which the topics are published.
+* `~stream_INS` (bool, default: true)
+   - Flag to stream navigation solution or not
+* `~stream_IMU` (bool, default: true)
+   - Flag to stream IMU measurements or not
+* `~stream_baro` (bool, default: 0)
+   - Flag to stream baro or not
+* `~stream_mag` (bool, default: false)
+   - Flag to stream magnetometer or not
+* `~stream_preint_IMU` (bool, default: false)
+   - Flag to stream preintegrated IMU or not
+* `~stream_GPS`(bool, default: false)
+   - Flag to stream GPS
+* `~stream_GPS_info`(bool, default: false)
+   - Flag to stream GPS info messages
+
+**Sensor Configuration**
 * `~INS_rpy` (vector(3), default: {0, 0, 0})
     - The roll, pitch, yaw rotation from the INS frame to the output frame
 * `~INS_xyz` (vector(3), default: {0, 0, 0})
@@ -100,6 +124,8 @@ If GPS is available, all header timestamps are calculated with respect to the GP
        - 7 = airborne 2G
        - 8 = airborne 4G
        - 9 = wrist
+
+**ASCII Output Configuration**
 * `~ser1_baud_rate` (int, default: 115200)
     - baud rate for serial1 port used for external NMEA messaging (located on H6-5) [serial port hardware connections](http://docs.inertialsense.com/user-manual/Setup_Integration/hardware_integration/#pin-definition)
 * `~NMEA_rate` (int, default: 0)
@@ -114,26 +140,6 @@ If GPS is available, all header timestamps are calculated with respect to the GP
     - bitmask to enable NMEA message on serial ports (bitwise OR to enable both ports) 
       - Ser0 (USB/H4-4)  = 0x01 
       - Ser1 (H6-5) = 0x02 
-
-## Topics
-- `ins/`(nav_msgs/Odometry)
-    - full 12-DOF measurements from onboard estimator (NED frame)
-- `imu1/`(sensor_msgs/Imu)
-    - Raw Imu measurements from IMU1 (NED frame)
-- `imu2/`(sensor_msgs/Imu)
-    - Raw Imu measurements from IMU2 (NED frame)
-- `gps/`(inertial_sense/GPS)
-    - unfiltered GPS measurements from onboard GPS unit
-- `gps/info`(inertial_sense/GPSInfo)
-    - sattelite information and carrier noise ratio array for each sattelite
-- `mag1` (sensor_msgs/MagneticField)
-    - Raw magnetic field measurement from magnetometer 1
-- `mag2` (sensor_msgs/MagneticField)
-    - Raw magnetic field measurement from magnetometer 2
-- `baro` (sensor_msgs/FluidPressure)
-    - Raw barometer measurements in kPa
-- `preint_imu` (inertial_sense/DThetaVel)
-    - preintegrated coning and sculling integrals of IMU measurements
 
 ## Services
 - `single_axis_mag_cal` (std_srvs/Trigger)

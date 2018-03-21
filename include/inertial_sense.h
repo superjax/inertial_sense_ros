@@ -60,12 +60,10 @@ private:
   // ROS Stream handling
   typedef struct
   {
-    int stream_rate;
+    bool enabled;
     ros::Publisher pub;
     ros::Publisher pub2;
   } ros_stream_t;
-
-  void request_data(uint32_t did, float update_rate);
 
   ros_stream_t INS_;
   void INS1_callback(const ins_1_t* const msg);
@@ -113,3 +111,4 @@ private:
 
 //  InertialSense inertialSenseInterface_;
 };
+
