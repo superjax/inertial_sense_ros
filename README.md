@@ -83,7 +83,7 @@ Topics are enabled and disabled using parameters.  By default, only the `ins/` t
   - frame id of all measurements
 
 **Topic Configuration**
-* `~navigation_dt_ms` (int, default: 250)
+* `~navigation_dt_ms` (int, default: 10)
    - milliseconds between internal navigation filter updates (min=2ms/500Hz).  This is also determines the rate at which the topics are published.
 * `~stream_INS` (bool, default: true)
    - Flag to stream navigation solution or not

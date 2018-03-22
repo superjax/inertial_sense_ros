@@ -69,8 +69,8 @@ InertialSenseROS::InertialSenseROS() :
   nh_private_.param<bool>("stream_IMU", IMU_.enabled, false);
   if (IMU_.enabled)
   {
-    INS_.pub = nh_.advertise<nav_msgs::Odometry>("imu", 1);
-//    INS_.pub2 = nh_.advertise<nav_msgs::Odometry>("imu2", 1);
+    IMU_.pub = nh_.advertise<sensor_msgs::Imu>("imu", 1);
+//    IMU_.pub2 = nh_.advertise<sensor_msgs::Imu>("imu2", 1);
     rmcBits |= RMC_BITS_DUAL_IMU;
   }
 
