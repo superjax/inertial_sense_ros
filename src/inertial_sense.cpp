@@ -1,6 +1,7 @@
 #include "inertial_sense.h"
 #include <chrono>
 #include <stddef.h>
+#include <unistd.h>
 
 #include <ros/console.h>
 
@@ -22,19 +23,39 @@ InertialSenseROS::InertialSenseROS() :
     ros::shutdown();
   }
   else
-  {
     ROS_INFO("Connected to uINS on \"%s\", at %d baud", port_.c_str(), baudrate_);
+  
+  // Initialize the IS parser
+  comm_.buffer = message_buffer_;
+  comm_.bufferSize = sizeof(message_buffer_);
+  is_comm_init(&comm_);
+  get_flash_config();
+
+  // Make sure the navigation rate is right, if it's not, then we need to change and reset it.
+  int nav_dt_ms;
+  if (nh_private_.getParam("navigation_dt_ms", nav_dt_ms))
+  {
+    if (nav_dt_ms != flash_.startupNavDtMs)
+    {
+      int messageSize = is_comm_set_data(&comm_, DID_FLASH_CONFIG, offsetof(nvm_flash_cfg_t, startupNavDtMs), sizeof(uint32_t), &nav_dt_ms);
+      serialPortWrite(&serial_, message_buffer_, messageSize);
+      serialPortFlush(&serial_);
+      ROS_INFO("navigation rate change from %dms to %dms, resetting uINS to make change", flash_.startupNavDtMs, nav_dt_ms);
+      reset_device();
+      
+      // Re-request flash config to confirm change
+      get_flash_config();
+      if (flash_.startupNavDtMs != nav_dt_ms)
+        ROS_ERROR("unable to change navigation rate from %dms to %dms", flash_.startupNavDtMs, nav_dt_ms);
+      else
+        ROS_INFO("Set navigation rate to %dms", flash_.startupNavDtMs);
+    }
   }
   
   /// Start Up ROS service servers
   mag_cal_srv_ = nh_.advertiseService("single_axis_mag_cal", &InertialSenseROS::perform_mag_cal_srv_callback, this);
   multi_mag_cal_srv_ = nh_.advertiseService("multi_axis_mag_cal", &InertialSenseROS::perform_multi_mag_cal_srv_callback, this);
-
-  // Initialize the IS parser
-  comm_.buffer = message_buffer_;
-  comm_.bufferSize = sizeof(message_buffer_);
-  is_comm_init(&comm_);
-
+  
   // Stop all broadcasts
   uint32_t messageSize = is_comm_stop_broadcasts(&comm_);
   serialPortWrite(&serial_, message_buffer_, messageSize);
@@ -51,7 +72,7 @@ InertialSenseROS::InertialSenseROS() :
   set_flash_config<float>("declination", offsetof(nvm_flash_cfg_t, magDeclination), 0.20007290992f);
   set_flash_config<int>("dynamic_model", offsetof(nvm_flash_cfg_t, insDynModel), 8);
   set_flash_config<int>("ser1_baud_rate", offsetof(nvm_flash_cfg_t, ser1BaudRate), 115200);
-  set_flash_config<int>("navigation_dt_ms", offsetof(nvm_flash_cfg_t, startupNavDtMs), 4);
+
 
   /////////////////////////////////////////////////////////
   /// DATA STREAMS CONFIGURATION
@@ -157,6 +178,26 @@ void InertialSenseROS::set_flash_config(std::string param_name, uint32_t offset,
   nh_private_.param<T>(param_name, tmp, def);
   int messageSize = is_comm_set_data(&comm_, DID_FLASH_CONFIG, offset, sizeof(T), &tmp);
   serialPortWrite(&serial_, message_buffer_, messageSize);
+}
+
+void InertialSenseROS::get_flash_config()
+{
+  got_flash_config = false;
+  int messageSize = is_comm_get_data(&comm_, DID_FLASH_CONFIG, 0, 0, 0);
+  serialPortWrite(&serial_, message_buffer_, messageSize);
+  
+  // wait for flash config message to confirm connection
+  ros::Time start = ros::Time::now();
+  while (!got_flash_config && (ros::Time::now() - start).toSec() <= 3.0)
+    update();
+  if ((ros::Time::now() - start).toSec() >= 3.0)
+    ROS_FATAL("No response when requesting flash configuration from uINS on \"%s\", at %d baud", port_.c_str(), baudrate_);
+}
+
+void InertialSenseROS::flash_config_callback(const nvm_flash_cfg_t * const msg)
+{
+  got_flash_config = true;
+  flash_ = (*msg);
 }
 
 void InertialSenseROS::INS1_callback(const ins_1_t * const msg)
@@ -285,6 +326,9 @@ void InertialSenseROS::update()
     {
     case DID_NULL:
       // no valid message yet
+      break;
+    case DID_FLASH_CONFIG:
+      flash_config_callback((nvm_flash_cfg_t*) message_buffer_);
       break;
     case DID_INS_1:
       INS1_callback((ins_1_t*) message_buffer_);
@@ -446,10 +490,19 @@ bool InertialSenseROS::perform_multi_mag_cal_srv_callback(std_srvs::Trigger::Req
   serialPortWrite(&serial_, message_buffer_, messageSize);  
 }
 
+void InertialSenseROS::reset_device()
+{
+  // send reset command
+  uint32_t reset_command = 99;
+  int messageSize = is_comm_set_data(&comm_, DID_CONFIG, offsetof(config_t, system), sizeof(uint32_t), &reset_command);
+  serialPortWrite(&serial_, message_buffer_, messageSize);
+  sleep(3);
+}
+
 
 
 int main(int argc, char**argv)
-{
+ {
   ros::init(argc, argv, "inertial_sense_node");
   InertialSenseROS thing;
   while (ros::ok())

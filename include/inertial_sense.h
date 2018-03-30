@@ -44,8 +44,12 @@ public:
 
 private:
   
+  void initialize_uINS();
   template<typename T> void set_vector_flash_config(std::string param_name, uint32_t size, uint32_t offset);
   template <typename T>  void set_flash_config(std::string param_name, uint32_t offset, T def);
+  void get_flash_config();
+  void reset_device();
+  void flash_config_callback(const nvm_flash_cfg_t* const msg);
   // Serial Port Configuration
   std::string port_;
   int baudrate_;
@@ -108,6 +112,8 @@ private:
   is_comm_instance_t comm_;
   uint8_t message_buffer_[BUFFER_SIZE];
   serial_port_t serial_;
+  bool got_flash_config = false;
+  nvm_flash_cfg_t flash_; // local copy of flash config
 
 //  InertialSense inertialSenseInterface_;
 };

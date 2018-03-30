@@ -105,7 +105,7 @@ Topics are enabled and disabled using parameters.  By default, only the `ins/` t
     - The roll, pitch, yaw rotation from the INS frame to the output frame
 * `~INS_xyz` (vector(3), default: {0, 0, 0})
     - The NED translation vector between the INS frame and the output frame (wrt output frame)
-* `~GPS_ang_xyz` (vector(3), default: {0, 0, 0})
+* `~GPS_ant_xyz` (vector(3), default: {0, 0, 0})
     - The NED translation vector between the INS frame and the GPS antenna (wrt INS frame)
 * `~GPS_ref_lla` (vector(3), default: {0, 0, 0})
     - The Reference longitude, latitude and altitude for NED calculation in degrees, degrees and meters
