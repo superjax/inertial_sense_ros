@@ -92,7 +92,7 @@ InertialSenseROS::InertialSenseROS() :
   {
     IMU_.pub = nh_.advertise<sensor_msgs::Imu>("imu", 1);
 //    IMU_.pub2 = nh_.advertise<sensor_msgs::Imu>("imu2", 1);
-    rmcBits |= RMC_BITS_DUAL_IMU;
+    rmcBits |= RMC_BITS_DUAL_IMU | RMC_BITS_INS1 | RMC_BITS_INS2;
   }
 
   // Set up the GPS ROS stream - we always need GPS information for time sync, just don't always need to publish it
@@ -241,7 +241,8 @@ void InertialSenseROS::INS2_callback(const ins_2_t * const msg)
   odom_msg.twist.twist.angular.x = imu1_msg.angular_velocity.x;
   odom_msg.twist.twist.angular.y = imu1_msg.angular_velocity.y;
   odom_msg.twist.twist.angular.z = imu1_msg.angular_velocity.z;
-  INS_.pub.publish(odom_msg);
+  if (INS_.enabled)
+    INS_.pub.publish(odom_msg);
 }
 
 
