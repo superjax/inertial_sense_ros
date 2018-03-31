@@ -4,21 +4,7 @@ A ROS wrapper for the InertialSense uINS2 GPS-INS sensor
 
 ## NOTICE:
 
-This node is in beta.  Release is coming in the next few weeks.  Until then, you will need to load the latest beta firmware on your uINS
-
-(beta firmware link)[https://github.com/inertialsense/inertialsense_serial_protocol/releases/tag/v1.2-beta-0]
-
-## Functionality
-- INS full odometry streaming
-- Dual IMU streaming
-- Full GPS data streaming
-- Magnetomter streaming
-- Barometer streaming
-- Coning and Sculling integral streaming
-- Timestamping uses GPS timestamps when available and syncs sensor messages with ROS time if unavailable.
-- Flash configuration via parameters
-- Changing dynamic model via parameter
-
+To use this node, you will need to install the latest firmware on your uINS [release page](https://github.com/inertialsense/InertialSenseSDK/releases)
 
 ## Installation
 This is a ROS package, with the InertialSenseSDK as a submodule, so just create a catkin workspace, clone this into the `src` folder, pull down the submodule and build
@@ -49,11 +35,13 @@ rosparam set /inertial_sense_node/GPS_ref_lla "[40.25, -111.67, 1556.59]"
 rosrun inertial_sense inertial_sense_node
 ```
 
-For setting parameters and topic remappings from a launch file, refer to the [Roslaunch for Larger Projects](http://wiki.ros.org/roslaunch/Tutorials/Roslaunch%20tips%20for%20larger%20projects) page, or the sample `launch/test.launch` file.
+For setting parameters and topic remappings from a launch file, refer to the [Roslaunch for Larger Projects](http://wiki.ros.org/roslaunch/Tutorials/Roslaunch%20tips%20for%20larger%20projects) page, or the sample `launch/test.launch` file in this repository.
 
 ## Time Stamps
 
-If GPS is available, all header timestamps are calculated with respect to the GPS clock but are translated into UNIX time to be consistent with the other topics in a ROS network.  If GPS is unvailable, then a constant offset between uINS time and system time is estimated during operation  and is applied to IMU and INS message timestamps as they arrive.  There is often a small drift in these timestamps (on the order of a microsecond per second), due to variance in measurement streams and difference between uINS and system clocks, however this is more accurate than stamping the measurements with ROS time as they arrive.  In an ideal setting, there should be no jump in timestamps when GPS is first acquired, because the timestamps should be identical, however, due to inaccuracies in system time, there will likely be a small jump in message timestamps after the first GPS fix.
+If GPS is available, all header timestamps are calculated with respect to the GPS clock but are translated into UNIX time to be consistent with the other topics in a ROS network.  If GPS is unvailable, then a constant offset between uINS time and system time is estimated during operation  and is applied to IMU and INS message timestamps as they arrive.  There is often a small drift in these timestamps (on the order of a microsecond per second), due to variance in measurement streams and difference between uINS and system clocks, however this is more accurate than stamping the measurements with ROS time as they arrive.  
+
+In an ideal setting, there should be no jump in timestamps when GPS is first acquired, because the timestamps should be identical, however, due to inaccuracies in system time, there will likely be a small jump in message timestamps after the first GPS fix.
 
 ## Topics
 
@@ -143,6 +131,6 @@ Topics are enabled and disabled using parameters.  By default, only the `ins/` t
 
 ## Services
 - `single_axis_mag_cal` (std_srvs/Trigger)
-  - Put INS into single axis magnetometer calibration mode.  This is typically used if the uINS is rigidly mounted to a heavy vehicle, such as a car. After this call, the uINS must perform a single orbit around one axis (i.g. drive in a circle) to calibrate the mag [more info](http://docs.inertialsense.com/user-manual/Setup_Integration/magnetometer_calibration/)
+  - Put INS into single axis magnetometer calibration mode.  This is typically used if the uINS is rigidly mounted to a heavy vehicle that will not undergo large roll or pitch motions, such as a car. After this call, the uINS must perform a single orbit around one axis (i.g. drive in a circle) to calibrate the magnetometer [more info](http://docs.inertialsense.com/user-manual/Setup_Integration/magnetometer_calibration/)
 - `multi_axis_mag_cal` (std_srvs/Trigger)
   - Put INS into multi axis magnetometer calibration mode.  This is typically used if the uINS is not mounted to a vehicle, or a lightweight vehicle such as a drone.  Simply rotate the uINS around all axes until the light on the uINS turns blue [more info](http://docs.inertialsense.com/user-manual/Setup_Integration/magnetometer_calibration/)
