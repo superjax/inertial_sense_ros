@@ -19,8 +19,8 @@ InertialSenseROS::InertialSenseROS() :
   ROS_INFO("Connecting to serial port \"%s\", at %d baud", port_.c_str(), baudrate_);
   if (serialPortOpen(&serial_, port_.c_str(), baudrate_, true) != 1)
   {
-    ROS_FATAL("Unable to open serial port \"%s\", at %d baud", port_.c_str(), baudrate_);
-    ros::shutdown();
+    ROS_FATAL("inertialsense: Unable to open serial port \"%s\", at %d baud", port_.c_str(), baudrate_);
+    exit(0);
   }
   else
     ROS_INFO("Connected to uINS on \"%s\", at %d baud", port_.c_str(), baudrate_);
@@ -46,7 +46,7 @@ InertialSenseROS::InertialSenseROS() :
       // Re-request flash config to confirm change
       get_flash_config();
       if (flash_.startupNavDtMs != nav_dt_ms)
-        ROS_ERROR("unable to change navigation rate from %dms to %dms", flash_.startupNavDtMs, nav_dt_ms);
+        ROS_ERROR("inertialsense: unable to change navigation rate from %dms to %dms", flash_.startupNavDtMs, nav_dt_ms);
       else
         ROS_INFO("Set navigation rate to %dms", flash_.startupNavDtMs);
     }
@@ -191,7 +191,7 @@ void InertialSenseROS::get_flash_config()
   while (!got_flash_config && (ros::Time::now() - start).toSec() <= 3.0)
     update();
   if ((ros::Time::now() - start).toSec() >= 3.0)
-    ROS_FATAL("No response when requesting flash configuration from uINS on \"%s\", at %d baud", port_.c_str(), baudrate_);
+    ROS_FATAL("inertialsense: No response when requesting flash configuration from uINS on \"%s\", at %d baud", port_.c_str(), baudrate_);
 }
 
 void InertialSenseROS::flash_config_callback(const nvm_flash_cfg_t * const msg)
