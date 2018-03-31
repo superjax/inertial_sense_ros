@@ -53,7 +53,7 @@ For setting parameters and topic remappings from a launch file, refer to the [Ro
 
 ## Time Stamps
 
-If GPS is available, all header timestamps are calculated with respect to the GPS clock but are translated into UNIX time to be consistent with the other topics in a ROS network.  If GPS is unvailable, then message headers are assigned a timestamp when they arrive at the computer with ROS time.  In an ideal setting, there should be no jump in timestamps when GPS is first acquired, because the timestamps should be identical, however, due to inaccuracies in system time, there will likely be a small adjustment to message timestamps when GPS is first acquired.
+If GPS is available, all header timestamps are calculated with respect to the GPS clock but are translated into UNIX time to be consistent with the other topics in a ROS network.  If GPS is unvailable, then a constant offset between uINS time and system time is estimated during operation  and is applied to IMU and INS message timestamps as they arrive.  There is often a small drift in these timestamps (on the order of a microsecond per second), due to variance in measurement streams and difference between uINS and system clocks, however this is more accurate than stamping the measurements with ROS time as they arrive.  In an ideal setting, there should be no jump in timestamps when GPS is first acquired, because the timestamps should be identical, however, due to inaccuracies in system time, there will likely be a small jump in message timestamps after the first GPS fix.
 
 ## Topics
 

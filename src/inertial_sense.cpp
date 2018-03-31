@@ -6,7 +6,7 @@
 #include <ros/console.h>
 
 InertialSenseROS::InertialSenseROS() :
-  nh_(), nh_private_("~"), INS_local_offset_(0,0), GPS_towOffset_(0), GPS_week_(0) 
+  nh_(), nh_private_("~")
 {
   nh_private_.param<std::string>("port", port_, "/dev/ttyUSB0");
   nh_private_.param<int>("baudrate", baudrate_, 3000000);
@@ -221,8 +221,7 @@ void InertialSenseROS::INS2_callback(const ins_2_t * const msg)
   }
   else
   {
-    // Publish with ROS time
-    ins_time = ros::Time::now();
+    ins_time = ros::Time(INS_local_offset_ + msg->timeOfWeek);
   }
   
   odom_msg.header.stamp = ins_time;
@@ -258,8 +257,18 @@ void InertialSenseROS::IMU_callback(const dual_imu_t* const msg)
   }
   else
   {
+    if (!got_first_message_)
+    {
+      got_first_message_ = true;
+      INS_local_offset_ = ros::Time::now().toSec() - msg->time;
+    }
+    else // low-pass filter offset to account for drift
+    {
+      double y_offset = ros::Time::now().toSec() - msg->time;
+      INS_local_offset_ = 0.005 * y_offset + 0.995 * INS_local_offset_;
+    }
     // Publish with ROS time
-    imu_time = ros::Time::now();
+    imu_time = ros::Time(INS_local_offset_ + msg->time);
   }
   
   imu1_msg.header.stamp = imu2_msg.header.stamp = imu_time;

@@ -55,9 +55,10 @@ private:
   int baudrate_;
   
   // Time sync variables
-  ros::Duration INS_local_offset_; 
-  double GPS_towOffset_; // The offset between GPS time-of-week and local time on the uINS 
-  uint64_t GPS_week_; 
+  double INS_local_offset_ = 0.0;
+  bool got_first_message_ = false;
+  double GPS_towOffset_ = 0; // The offset between GPS time-of-week and local time on the uINS 
+  uint64_t GPS_week_ = 0;
 
   std::string frame_id_;
 
