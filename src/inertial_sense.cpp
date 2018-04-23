@@ -2,7 +2,7 @@
 #include <chrono>
 #include <stddef.h>
 #include <unistd.h>
-
+#include <tf/tf.h>
 #include <ros/console.h>
 
 InertialSenseROS::InertialSenseROS() :
@@ -84,6 +84,10 @@ InertialSenseROS::InertialSenseROS() :
   {
     INS_.pub = nh_.advertise<nav_msgs::Odometry>("ins", 1);
     rmcBits |= RMC_BITS_DUAL_IMU | RMC_BITS_INS1 | RMC_BITS_INS2;
+    
+    // Request covariance information
+    messageSize = is_comm_get_data(&comm_, DID_INL2_VARIANCE, 0, 0, nav_dt_ms);
+    serialPortWrite(&serial_, message_buffer_, messageSize);
   }
 
   // Set up the IMU ROS stream
@@ -207,6 +211,25 @@ void InertialSenseROS::INS1_callback(const ins_1_t * const msg)
   odom_msg.pose.pose.position.x = msg->ned[0];
   odom_msg.pose.pose.position.y = msg->ned[1];
   odom_msg.pose.pose.position.z = msg->ned[2];
+}
+
+void InertialSenseROS::INS_variance_callback(const inl2_variance_t * const msg)
+{
+  // We have to convert NED velocity covariance into body-fixed
+  tf::Vector3 vel_NED(msg->PvelNED[0], msg->PvelNED[1], msg->PvelNED[2]);
+  tf::Quaternion att;
+  tf::quaternionMsgToTF(odom_msg.pose.pose.orientation, att);
+  tf::Vector3 vel_B = quatRotate(att, vel_NED);
+  
+  // Populate Covariance Matrix
+  double cov_vel_B[3] = {vel_B.x(), vel_B.y(), vel_B.z()};
+  for (int i = 0; i < 3; i++)
+  {
+    odom_msg.pose.covariance[7*i] = msg->PxyzNED[i];
+    odom_msg.pose.covariance[7*(i+3)] = msg->PattNED[i];
+    odom_msg.twist.covariance[7*i] = cov_vel_B[i];
+    odom_msg.twist.covariance[7*(i+3)] = msg->PWBias[i];
+  }  
 }
 
 
@@ -346,6 +369,9 @@ void InertialSenseROS::update()
     case DID_INS_2:
       INS2_callback((ins_2_t*) message_buffer_);
       break;
+    case DID_INL2_VARIANCE:
+      INS_variance_callback((inl2_variance_t*) message_buffer_);
+      break;    
 
     case DID_DUAL_IMU:
       IMU_callback((dual_imu_t*) message_buffer_);
@@ -369,7 +395,7 @@ void InertialSenseROS::update()
     case DID_BAROMETER:
       baro_callback((barometer_t*) message_buffer_);
       break;
-
+     
     case DID_PREINTEGRATED_IMU:
       preint_IMU_callback((preintegrated_imu_t*) message_buffer_);
       break;
