@@ -59,6 +59,7 @@ private:
   bool got_first_message_ = false;
   double GPS_towOffset_ = 0; // The offset between GPS time-of-week and local time on the uINS 
   uint64_t GPS_week_ = 0;
+  uint32_t insStatus_; // Current Status of INS estimator
 
   std::string frame_id_;
 

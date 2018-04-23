@@ -225,9 +225,18 @@ void InertialSenseROS::INS_variance_callback(const inl2_variance_t * const msg)
   double cov_vel_B[3] = {vel_B.x(), vel_B.y(), vel_B.z()};
   for (int i = 0; i < 3; i++)
   {
-    odom_msg.pose.covariance[7*i] = msg->PxyzNED[i];
+    // Position and velocity covariance is only valid if in NAV mode (with GPS)
+    if (insStatus_ & INS_STATUS_NAV_MODE)
+    {
+      odom_msg.pose.covariance[7*i] = msg->PxyzNED[i];
+      odom_msg.twist.covariance[7*i] = cov_vel_B[i];
+    }
+    else
+    {
+      odom_msg.pose.covariance[7*i] = 0;
+      odom_msg.twist.covariance[7*i] = 0;
+    }
     odom_msg.pose.covariance[7*(i+3)] = msg->PattNED[i];
-    odom_msg.twist.covariance[7*i] = cov_vel_B[i];
     odom_msg.twist.covariance[7*(i+3)] = msg->PWBias[i];
   }  
 }
@@ -235,6 +244,7 @@ void InertialSenseROS::INS_variance_callback(const inl2_variance_t * const msg)
 
 void InertialSenseROS::INS2_callback(const ins_2_t * const msg)
 {
+  insStatus_ = msg->insStatus;
   ros::Time ins_time(0,0);
   if (GPS_towOffset_ > 0.001)
   {
