@@ -47,7 +47,7 @@ In an ideal setting, there should be no jump in timestamps when GPS is first acq
 
 Topics are enabled and disabled using parameters.  By default, only the `ins/` topic is published to save processor time in serializing unecessary messages.
 - `ins/`(nav_msgs/Odometry)
-    - full 12-DOF measurements from onboard estimator (NED frame)
+    - full 12-DOF measurements from onboard estimator (pose portion is from inertial to body, twist portion is in body frame)
 - `imu/`(sensor_msgs/Imu)
     - Raw Imu measurements from IMU1 (NED frame)
 - `gps/`(inertial_sense/GPS)
