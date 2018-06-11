@@ -409,9 +409,30 @@ void InertialSenseROS::update()
     case DID_PREINTEGRATED_IMU:
       preint_IMU_callback((preintegrated_imu_t*) message_buffer_);
       break;
+    case DID_STROBE_IN_TIME:
+      strobe_in_time_callback((strobe_in_time_t*) message_buffer_);
+      break;
+      
+    default:
+      ROS_INFO("Unhandled IS message %d", message_type);
+      break;
     }
   }
 }
+
+void InertialSenseROS::strobe_in_time_callback(const strobe_in_time_t * const msg)
+{
+  // create the subscriber if it doesn't exist
+  if (strobe_pub_.getTopic().empty())
+    strobe_pub_ = nh_.advertise<std_msgs::Header>("strobe_time", 1);
+  
+  std_msgs::Header strobe_msg;
+  uint64_t seconds = UNIX_TO_GPS_OFFSET + msg->week*7*24*3600 + floor(msg->timeOfWeekMs/1e3);
+  uint64_t nsec = (msg->timeOfWeekMs - floor(msg->timeOfWeekMs))*1e6;
+  strobe_msg.stamp = ros::Time(seconds,nsec);
+  strobe_pub_.publish(strobe_msg);  
+}
+
 
 void InertialSenseROS::GPS_Info_callback(const gps_sat_t* const msg)
 {
