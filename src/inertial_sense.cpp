@@ -78,7 +78,7 @@ InertialSenseROS::InertialSenseROS() :
   /// DATA STREAMS CONFIGURATION
   /////////////////////////////////////////////////////////
   
-  uint32_t rmcBits = RMC_BITS_GPS_NAV; // we always need GPS for time synchronization
+  uint32_t rmcBits = RMC_BITS_GPS_NAV | RMC_BITS_STROBE_IN_TIME; // we always need GPS for time synchronization
   nh_private_.param<bool>("stream_INS", INS_.enabled, true);
   if (INS_.enabled)
   {
@@ -334,7 +334,7 @@ void InertialSenseROS::GPS_callback(const gps_nav_t * const msg)
   if (GPS_.enabled)
   {
     uint64_t seconds = UNIX_TO_GPS_OFFSET + msg->week*7*24*3600 + floor(msg->timeOfWeekMs/1e3);
-    uint64_t nsec = (msg->timeOfWeekMs/1e3 - floor(msg->timeOfWeekMs/1e3))*1e9;
+    uint64_t nsec = (msg->timeOfWeekMs % 1000)*1e9;
     GPS_week_seconds = msg->week*7*24*3600;
     gps_msg.header.stamp = ros::Time(seconds, nsec);
     gps_msg.fix_type = msg->status & GPS_STATUS_FIX_FLAGS_MASK;
@@ -413,6 +413,10 @@ void InertialSenseROS::update()
       strobe_in_time_callback((strobe_in_time_t*) message_buffer_);
       break;
       
+    case -1:
+      bad_data_callback(message_buffer_);
+      break;
+      
     default:
       ROS_INFO("Unhandled IS message %d", message_type);
       break;
@@ -428,7 +432,7 @@ void InertialSenseROS::strobe_in_time_callback(const strobe_in_time_t * const ms
   
   std_msgs::Header strobe_msg;
   uint64_t seconds = UNIX_TO_GPS_OFFSET + msg->week*7*24*3600 + floor(msg->timeOfWeekMs/1e3);
-  uint64_t nsec = (msg->timeOfWeekMs - floor(msg->timeOfWeekMs))*1e6;
+  uint64_t nsec = (msg->timeOfWeekMs % 1000)*1e6;
   strobe_msg.stamp = ros::Time(seconds,nsec);
   strobe_pub_.publish(strobe_msg);  
 }
@@ -437,7 +441,7 @@ void InertialSenseROS::strobe_in_time_callback(const strobe_in_time_t * const ms
 void InertialSenseROS::GPS_Info_callback(const gps_sat_t* const msg)
 {
   uint64_t seconds = UNIX_TO_GPS_OFFSET + GPS_week_seconds + floor(msg->timeOfWeekMs/1e3);
-  uint64_t nsec = (msg->timeOfWeekMs - floor(msg->timeOfWeekMs))*1e6;
+  uint64_t nsec = (msg->timeOfWeekMs % 1000)*1e6;
   gps_info_msg.header.stamp = ros::Time(seconds, nsec);
   gps_info_msg.header.frame_id = frame_id_;
   gps_info_msg.num_sats = msg->numSats;
@@ -564,6 +568,15 @@ void InertialSenseROS::reset_device()
   int messageSize = is_comm_set_data(&comm_, DID_CONFIG, offsetof(config_t, system), sizeof(uint32_t), &reset_command);
   serialPortWrite(&serial_, message_buffer_, messageSize);
   sleep(3);
+}
+
+void InertialSenseROS::bad_data_callback(const uint8_t *buf)
+{
+  std::cout << "\nbad data: " << std::endl;
+  for (int i = 0; i < BUFFER_SIZE; i++)
+  {
+    printf("%x ", buf[i]);
+  }
 }
 
 
