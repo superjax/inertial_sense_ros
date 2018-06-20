@@ -337,7 +337,7 @@ void InertialSenseROS::GPS_callback(const gps_nav_t * const msg)
     uint64_t nsec = (msg->timeOfWeekMs % 1000)*1e9;
     GPS_week_seconds = msg->week*7*24*3600;
     gps_msg.header.stamp = ros::Time(seconds, nsec);
-    gps_msg.fix_type = msg->status & GPS_STATUS_FIX_FLAGS_MASK;
+    gps_msg.fix_type = msg->status & GPS_STATUS_FIX_MASK;
     gps_msg.header.frame_id =frame_id_;
     gps_msg.num_sat = (uint8_t)(msg->status & GPS_STATUS_NUM_SATS_USED_MASK);
     gps_msg.cno = msg->cnoMean;
