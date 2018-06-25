@@ -244,21 +244,8 @@ void InertialSenseROS::INS_variance_callback(const inl2_variance_t * const msg)
 
 void InertialSenseROS::INS2_callback(const ins_2_t * const msg)
 {
-  insStatus_ = msg->insStatus;
-  ros::Time ins_time(0,0);
-  if (GPS_towOffset_ > 0.001)
-  {
-    uint64_t seconds = UNIX_TO_GPS_OFFSET + msg->week*7*24*3600 + floor(msg->timeOfWeek);
-    uint64_t nsec = (msg->timeOfWeek - floor(msg->timeOfWeek))*1e9;
-    ins_time = ros::Time(seconds, nsec);
-  }
-  else
-  {
-    ins_time = ros::Time(INS_local_offset_ + msg->timeOfWeek);
-  }
-  
-  odom_msg.header.stamp = ins_time;
-
+  insStatus_ = msg->insStatus;  
+  odom_msg.header.stamp = ros_time_from_week_and_tow(msg->week, msg->timeOfWeek);
   odom_msg.header.frame_id = frame_id_;
 
   odom_msg.pose.pose.orientation.w = msg->qn2b[0];
@@ -280,31 +267,7 @@ void InertialSenseROS::INS2_callback(const ins_2_t * const msg)
 
 void InertialSenseROS::IMU_callback(const dual_imu_t* const msg)
 {
-  ros::Time imu_time(0, 0);
-  //  If we have a GPS fix, then use it to timestamp IMU messages
-  if (GPS_towOffset_ > 0.001)
-  {
-    uint64_t sec = UNIX_TO_GPS_OFFSET + floor(msg->time + GPS_towOffset_) + GPS_week_*7*24*3600;
-    uint64_t nsec = (msg->time + GPS_towOffset_ - floor(msg->time + GPS_towOffset_))*1e9;
-    imu_time = ros::Time(sec, nsec);
-  }
-  else
-  {
-    if (!got_first_message_)
-    {
-      got_first_message_ = true;
-      INS_local_offset_ = ros::Time::now().toSec() - msg->time;
-    }
-    else // low-pass filter offset to account for drift
-    {
-      double y_offset = ros::Time::now().toSec() - msg->time;
-      INS_local_offset_ = 0.005 * y_offset + 0.995 * INS_local_offset_;
-    }
-    // Publish with ROS time
-    imu_time = ros::Time(INS_local_offset_ + msg->time);
-  }
-  
-  imu1_msg.header.stamp = imu2_msg.header.stamp = imu_time;
+  imu1_msg.header.stamp = imu2_msg.header.stamp = ros_time_from_start_time(msg->time);
   imu1_msg.header.frame_id = imu2_msg.header.frame_id = frame_id_;
 
   imu1_msg.angular_velocity.x = msg->I[0].pqr[0];
@@ -331,12 +294,11 @@ void InertialSenseROS::IMU_callback(const dual_imu_t* const msg)
 
 void InertialSenseROS::GPS_callback(const gps_nav_t * const msg)
 {
+  GPS_week_ = msg->week;
+  GPS_towOffset_ = msg->towOffset;
   if (GPS_.enabled)
   {
-    uint64_t seconds = UNIX_TO_GPS_OFFSET + msg->week*7*24*3600 + floor(msg->timeOfWeekMs/1e3);
-    uint64_t nsec = (msg->timeOfWeekMs % 1000)*1e9;
-    GPS_week_seconds = msg->week*7*24*3600;
-    gps_msg.header.stamp = ros::Time(seconds, nsec);
+    gps_msg.header.stamp = ros_time_from_week_and_tow(msg->week, msg->towOffset);
     gps_msg.fix_type = msg->status & GPS_STATUS_FIX_MASK;
     gps_msg.header.frame_id =frame_id_;
     gps_msg.num_sat = (uint8_t)(msg->status & GPS_STATUS_NUM_SATS_USED_MASK);
@@ -353,8 +315,6 @@ void InertialSenseROS::GPS_callback(const gps_nav_t * const msg)
     gps_msg.linear_velocity.z = msg->velNed[2];
     GPS_.pub.publish(gps_msg);
   }
-  GPS_week_ = msg->week;
-  GPS_towOffset_ = msg->towOffset;
 }
 
 void InertialSenseROS::update()
@@ -431,18 +391,14 @@ void InertialSenseROS::strobe_in_time_callback(const strobe_in_time_t * const ms
     strobe_pub_ = nh_.advertise<std_msgs::Header>("strobe_time", 1);
   
   std_msgs::Header strobe_msg;
-  uint64_t seconds = UNIX_TO_GPS_OFFSET + msg->week*7*24*3600 + floor(msg->timeOfWeekMs/1e3);
-  uint64_t nsec = (msg->timeOfWeekMs % 1000)*1e6;
-  strobe_msg.stamp = ros::Time(seconds,nsec);
+  strobe_msg.stamp = ros_time_from_week_and_tow(msg->week, msg->timeOfWeekMs * 1e-3);
   strobe_pub_.publish(strobe_msg);  
 }
 
 
 void InertialSenseROS::GPS_Info_callback(const gps_sat_t* const msg)
 {
-  uint64_t seconds = UNIX_TO_GPS_OFFSET + GPS_week_seconds + floor(msg->timeOfWeekMs/1e3);
-  uint64_t nsec = (msg->timeOfWeekMs % 1000)*1e6;
-  gps_info_msg.header.stamp = ros::Time(seconds, nsec);
+  gps_info_msg.header.stamp =ros_time_from_tow(msg->timeOfWeekMs/1e3);
   gps_info_msg.header.frame_id = frame_id_;
   gps_info_msg.num_sats = msg->numSats;
   for (int i = 0; i < 50; i++)
@@ -457,20 +413,7 @@ void InertialSenseROS::GPS_Info_callback(const gps_sat_t* const msg)
 void InertialSenseROS::mag_callback(const magnetometer_t* const msg, int mag_number)
 {
   sensor_msgs::MagneticField mag_msg;
-  ros::Time mag_time(0, 0);
-  //  If we have a GPS fix, then use it to timestamp mag messages
-  if (GPS_towOffset_ > 0.001)
-  {
-    uint64_t sec = UNIX_TO_GPS_OFFSET + floor(msg->time + GPS_towOffset_);
-    uint64_t nsec = (msg->time + GPS_towOffset_ - floor(msg->time + GPS_towOffset_))*1e9;
-    mag_time = ros::Time(sec, nsec);
-  }
-  else
-  {
-    // Publish with ROS time
-    mag_time = ros::Time::now();
-  }
-  mag_msg.header.stamp = mag_time;
+  mag_msg.header.stamp = ros_time_from_start_time(msg->time);
   mag_msg.header.frame_id = frame_id_;
   mag_msg.magnetic_field.x = msg->mag[0];
   mag_msg.magnetic_field.y = msg->mag[1];
@@ -489,21 +432,7 @@ void InertialSenseROS::mag_callback(const magnetometer_t* const msg, int mag_num
 void InertialSenseROS::baro_callback(const barometer_t * const msg)
 {
   sensor_msgs::FluidPressure baro_msg;
-  ros::Time baro_time(0, 0);
-  //  If we have a GPS fix, then use it to timestamp baro messages
-  if (GPS_towOffset_ > 0.001)
-  {
-    uint64_t sec = UNIX_TO_GPS_OFFSET + floor(msg->time + GPS_towOffset_);
-    uint64_t nsec = (msg->time + GPS_towOffset_ - floor(msg->time + GPS_towOffset_))*1e9;
-    baro_time = ros::Time(sec, nsec);
-  }
-  else
-  {
-    // Publish with ROS time
-    baro_time = ros::Time::now();
-  }
-  
-  baro_msg.header.stamp = baro_time;
+  baro_msg.header.stamp = ros_time_from_start_time(msg->time);
   baro_msg.header.frame_id = frame_id_;
   baro_msg.fluid_pressure = msg->bar;
 
@@ -512,23 +441,8 @@ void InertialSenseROS::baro_callback(const barometer_t * const msg)
 
 void InertialSenseROS::preint_IMU_callback(const preintegrated_imu_t * const msg)
 {
-  inertial_sense::PreIntIMU preintIMU_msg;
-
-  ros::Time imu_time(0, 0);
-  //  If we have a GPS fix, then use it to timestamp imu messages (convert to UNIX time)
-  if (GPS_towOffset_ > 0.001)
-  {
-    uint64_t sec = UNIX_TO_GPS_OFFSET + floor(msg->time + GPS_towOffset_);
-    uint64_t nsec = (msg->time + GPS_towOffset_ - floor(msg->time + GPS_towOffset_))*1e9;
-    imu_time = ros::Time(sec, nsec);
-  }
-  else
-  {
-    // Publish with ROS time
-    imu_time = ros::Time::now();
-  }
-   
-  preintIMU_msg.header.stamp = imu_time;
+  inertial_sense::PreIntIMU preintIMU_msg;   
+  preintIMU_msg.header.stamp = ros_time_from_start_time(msg->time);
   preintIMU_msg.header.frame_id = frame_id_;
   preintIMU_msg.dtheta.x = msg->theta1[0];
   preintIMU_msg.dtheta.y = msg->theta1[1];
@@ -579,6 +493,69 @@ void InertialSenseROS::bad_data_callback(const uint8_t *buf)
   }
 }
 
+ros::Time InertialSenseROS::ros_time_from_week_and_tow(const uint32_t week, const double timeOfWeek)
+{
+  ros::Time rostime(0, 0);
+  //  If we have a GPS fix, then use it to set timestamp
+  if (GPS_towOffset_)
+  {
+    uint64_t sec = UNIX_TO_GPS_OFFSET + floor(timeOfWeek) + week*7*24*3600;
+    uint64_t nsec = (timeOfWeek - floor(timeOfWeek))*1e9;
+    rostime = ros::Time(sec, nsec);
+  }
+  else
+  {
+    // Otherwise, estimate the uINS boot time and offset the messages
+    if (!got_first_message_)
+    {
+      got_first_message_ = true;
+      INS_local_offset_ = ros::Time::now().toSec() - timeOfWeek;
+    }
+    else // low-pass filter offset to account for drift
+    {
+      double y_offset = ros::Time::now().toSec() - timeOfWeek;
+      INS_local_offset_ = 0.005 * y_offset + 0.995 * INS_local_offset_;
+    }
+    // Publish with ROS time
+    rostime = ros::Time(INS_local_offset_ + timeOfWeek);
+  }
+  return rostime;
+}
+
+ros::Time InertialSenseROS::ros_time_from_start_time(const double time)
+{
+  ros::Time rostime(0, 0);
+  
+  //  If we have a GPS fix, then use it to set timestamp
+  if (GPS_towOffset_ > 0.001)
+  {
+    uint64_t sec = UNIX_TO_GPS_OFFSET + floor(time + GPS_towOffset_) + GPS_week_*7*24*3600;
+    uint64_t nsec = (time + GPS_towOffset_ - floor(time + GPS_towOffset_))*1e9;
+    rostime = ros::Time(sec, nsec);
+  }
+  else
+  {
+    // Otherwise, estimate the uINS boot time and offset the messages
+    if (!got_first_message_)
+    {
+      got_first_message_ = true;
+      INS_local_offset_ = ros::Time::now().toSec() - time;
+    }
+    else // low-pass filter offset to account for drift
+    {
+      double y_offset = ros::Time::now().toSec() - time;
+      INS_local_offset_ = 0.005 * y_offset + 0.995 * INS_local_offset_;
+    }
+    // Publish with ROS time
+    rostime = ros::Time(INS_local_offset_ + time);
+  }
+  return rostime;
+}
+
+ros::Time InertialSenseROS::ros_time_from_tow(const double tow)
+{
+  return ros_time_from_week_and_tow(GPS_week_, tow);
+}
 
 
 int main(int argc, char**argv)

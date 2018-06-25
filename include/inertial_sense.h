@@ -54,12 +54,7 @@ private:
   // Serial Port Configuration
   std::string port_;
   int baudrate_;
-  
-  // Time sync variables
-  double INS_local_offset_ = 0.0;
-  bool got_first_message_ = false;
-  double GPS_towOffset_ = 0; // The offset between GPS time-of-week and local time on the uINS 
-  uint64_t GPS_week_ = 0;
+
   uint32_t insStatus_; // Current Status of INS estimator
 
   std::string frame_id_;
@@ -104,14 +99,43 @@ private:
   ros::ServiceServer multi_mag_cal_srv_;
   bool perform_mag_cal_srv_callback(std_srvs::Trigger::Request & req, std_srvs::Trigger::Response & res);
   bool perform_multi_mag_cal_srv_callback(std_srvs::Trigger::Request & req, std_srvs::Trigger::Response & res);
-
+  
+  
+  /**
+   * @brief ros_time_from_week_and_tow
+   * Get current ROS time from week and tow
+   * @param week Weeks since January 6th, 1980 
+   * @param timeOfWeek Time of week (since Sunday morning) in seconds, GMT
+   * @return equivalent ros::Time
+   */
+  ros::Time ros_time_from_week_and_tow(const uint32_t week, const double timeOfWeek);
+  
+  /**
+   * @brief ros_time_from_start_time
+   * @param time - Time since boot up in seconds - Convert to GPS time of week by adding gps.towOffset 
+   * @return equivalent ros::Time
+   */
+  ros::Time ros_time_from_start_time(const double time);
+  
+  /**
+   * @brief ros_time_from_tow 
+   * Get equivalent ros time from tow and internal week counter
+   * @param tow Time of Week (seconds)
+   * @return equivalent ros::Time
+   */
+  ros::Time ros_time_from_tow(const double tow);
+  double GPS_towOffset_ = 0; // The offset between GPS time-of-week and local time on the uINS 
+                             //  If this number is 0, then we have not yet got a fix
+  uint64_t GPS_week_ = 0; // Week number to start of GPS_towOffset_ in GPS time
+  // Time sync variables
+  double INS_local_offset_ = 0.0; // Current estimate of the uINS start time in ROS time seconds
+  bool got_first_message_ = false; // Flag to capture first uINS start time guess
 
   // Data to hold on to in between callbacks
   sensor_msgs::Imu imu1_msg, imu2_msg;
   nav_msgs::Odometry odom_msg;
   inertial_sense::GPS gps_msg;
   inertial_sense::GPSInfo gps_info_msg;
-  uint64_t GPS_week_seconds;
 
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
