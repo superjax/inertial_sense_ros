@@ -6,7 +6,7 @@
 #include <ros/console.h>
 
 InertialSenseROS::InertialSenseROS() :
-  nh_(), nh_private_("~")
+  nh_(), nh_private_("~"), initialized_(false)
 {
   nh_private_.param<std::string>("port", port_, "/dev/ttyUSB0");
   nh_private_.param<int>("baudrate", baudrate_, 3000000);
@@ -158,6 +158,8 @@ InertialSenseROS::InertialSenseROS() :
   msgs.gprmc = (NMEA_message_configuration & NMEA_GPRMC) ? NMEA_rate : 0;
   messageSize = is_comm_set_data(&comm_, DID_ASCII_BCAST_PERIOD, 0, sizeof(ascii_msgs_t), &msgs);
   serialPortWrite(&serial_, message_buffer_, messageSize);  
+
+  initialized_ = true;
 }
 
 template <typename T>
@@ -216,20 +218,22 @@ void InertialSenseROS::INS1_callback(const ins_1_t * const msg)
 void InertialSenseROS::INS_variance_callback(const inl2_variance_t * const msg)
 {
   // We have to convert NED velocity covariance into body-fixed
-  tf::Vector3 vel_NED(msg->PvelNED[0], msg->PvelNED[1], msg->PvelNED[2]);
+  tf::Matrix3x3 cov_vel_NED;
+  cov_vel_NED.setValue(msg->PvelNED[0], 0, 0, 0, msg->PvelNED[1], 0, 0, 0, msg->PvelNED[2]);
   tf::Quaternion att;
   tf::quaternionMsgToTF(odom_msg.pose.pose.orientation, att);
-  tf::Vector3 vel_B = quatRotate(att, vel_NED);
-  
+  tf::Matrix3x3 R_NED_B(att);
+  tf::Matrix3x3 cov_vel_B = R_NED_B.transposeTimes(cov_vel_NED * R_NED_B);
+
   // Populate Covariance Matrix
-  double cov_vel_B[3] = {vel_B.x(), vel_B.y(), vel_B.z()};
   for (int i = 0; i < 3; i++)
   {
     // Position and velocity covariance is only valid if in NAV mode (with GPS)
     if (insStatus_ & INS_STATUS_NAV_MODE)
     {
       odom_msg.pose.covariance[7*i] = msg->PxyzNED[i];
-      odom_msg.twist.covariance[7*i] = cov_vel_B[i];
+      for (int j = 0; j < 3; j++)
+        odom_msg.twist.covariance[6*i+j] = cov_vel_B[i][j];
     }
     else
     {
@@ -325,61 +329,68 @@ void InertialSenseROS::update()
   for (int i = 0; i < bytes_read; i++)
   {
     uint32_t message_type = is_comm_parse(&comm_, buffer[i]);
-    switch (message_type)
+
+    if (message_type == DID_FLASH_CONFIG)
     {
-    case DID_NULL:
-      // no valid message yet
-      break;
-    case DID_FLASH_CONFIG:
       flash_config_callback((nvm_flash_cfg_t*) message_buffer_);
       break;
-    case DID_INS_1:
-      INS1_callback((ins_1_t*) message_buffer_);
-      break;
-    case DID_INS_2:
-      INS2_callback((ins_2_t*) message_buffer_);
-      break;
-    case DID_INL2_VARIANCE:
-      INS_variance_callback((inl2_variance_t*) message_buffer_);
-      break;    
+    }
 
-    case DID_DUAL_IMU:
-      IMU_callback((dual_imu_t*) message_buffer_);
-      break;
+    if(initialized_)
+    {
+      switch (message_type)
+      {
+      case DID_NULL:
+        // no valid message yet
+        break;
+      case DID_INS_1:
+        INS1_callback((ins_1_t*) message_buffer_);
+        break;
+      case DID_INS_2:
+        INS2_callback((ins_2_t*) message_buffer_);
+        break;
+      case DID_INL2_VARIANCE:
+        INS_variance_callback((inl2_variance_t*) message_buffer_);
+        break;
 
-    case DID_GPS_NAV:
-      GPS_callback((gps_nav_t*) message_buffer_);
-      break;
+      case DID_DUAL_IMU:
+        IMU_callback((dual_imu_t*) message_buffer_);
+        break;
 
-    case DID_GPS1_SAT:
-      GPS_Info_callback((gps_sat_t*) message_buffer_);
-      break;
+      case DID_GPS_NAV:
+        GPS_callback((gps_nav_t*) message_buffer_);
+        break;
 
-    case DID_MAGNETOMETER_1:
-      mag_callback((magnetometer_t*) message_buffer_, 1);
-      break;
-    case DID_MAGNETOMETER_2:
-      mag_callback((magnetometer_t*) message_buffer_, 2);
-      break;
+      case DID_GPS1_SAT:
+        GPS_Info_callback((gps_sat_t*) message_buffer_);
+        break;
 
-    case DID_BAROMETER:
-      baro_callback((barometer_t*) message_buffer_);
-      break;
-     
-    case DID_PREINTEGRATED_IMU:
-      preint_IMU_callback((preintegrated_imu_t*) message_buffer_);
-      break;
-    case DID_STROBE_IN_TIME:
-      strobe_in_time_callback((strobe_in_time_t*) message_buffer_);
-      break;
-      
-    case -1:
-      bad_data_callback(message_buffer_);
-      break;
-      
-    default:
-      ROS_INFO("Unhandled IS message %d", message_type);
-      break;
+      case DID_MAGNETOMETER_1:
+        mag_callback((magnetometer_t*) message_buffer_, 1);
+        break;
+      case DID_MAGNETOMETER_2:
+        mag_callback((magnetometer_t*) message_buffer_, 2);
+        break;
+
+      case DID_BAROMETER:
+        baro_callback((barometer_t*) message_buffer_);
+        break;
+
+      case DID_PREINTEGRATED_IMU:
+        preint_IMU_callback((preintegrated_imu_t*) message_buffer_);
+        break;
+      case DID_STROBE_IN_TIME:
+        strobe_in_time_callback((strobe_in_time_t*) message_buffer_);
+        break;
+
+      case -1:
+        bad_data_callback(message_buffer_);
+        break;
+
+      default:
+        ROS_INFO("Unhandled IS message %d", message_type);
+        break;
+      }
     }
   }
 }

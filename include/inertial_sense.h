@@ -47,13 +47,14 @@ private:
   
   void initialize_uINS();
   template<typename T> void set_vector_flash_config(std::string param_name, uint32_t size, uint32_t offset);
-  template <typename T>  void set_flash_config(std::string param_name, uint32_t offset, T def);
+  template<typename T>  void set_flash_config(std::string param_name, uint32_t offset, T def);
   void get_flash_config();
   void reset_device();
   void flash_config_callback(const nvm_flash_cfg_t* const msg);
   // Serial Port Configuration
   std::string port_;
   int baudrate_;
+  bool initialized_;
 
   uint32_t insStatus_; // Current Status of INS estimator
 
