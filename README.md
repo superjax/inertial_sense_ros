@@ -6,7 +6,7 @@ A ROS wrapper for the InertialSense uINS2 GPS-INS sensor
 
 To use this node, you will likely need to update firmware on your uINS [release page](https://github.com/inertialsense/InertialSenseSDK/releases)
 
-On the release page, there is a Windows graphical utility you can use to update the firmware, or you can use the CLTool, packaged in the SDK.  I used the following commands to update the firmware to 1.6.2 after downloading the SDK and firmware (change file paths as necesary)
+On the release page, there is a Windows graphical utility you can use to update the firmware, or you can use the CLTool, packaged in the SDK to update in linux.  I used the following commands to update the firmware to 1.6.2 after downloading the SDK and firmware (change file paths as necesary)
 
 ``` bash
 cd InertialSenseSDK-1.6.2/
