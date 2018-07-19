@@ -4,7 +4,20 @@ A ROS wrapper for the InertialSense uINS2 GPS-INS sensor
 
 ## NOTICE:
 
-To use this node, you will need to install the latest firmware on your uINS [release page](https://github.com/inertialsense/InertialSenseSDK/releases)
+To use this node, you will likely need to update firmware on your uINS [release page](https://github.com/inertialsense/InertialSenseSDK/releases)
+
+On the release page, there is a Windows graphical utility you can use to update the firmware, or you can use the CLTool, packaged in the SDK.  I used the following commands to update the firmware to 1.6.2 after downloading the SDK and firmware (change file paths as necesary)
+
+``` bash
+cd InertialSenseSDK-1.6.2/
+cd CLTool/
+mkdir build
+cd build/
+cmake ..
+make -j4 -l4
+./bin/cltool -c=/dev/ttyUSB0 -baud=921600 -b=/home/superjax/Downloads/IS_uINS-3_v1.6.6.0_b2781_2018-06-29_175015.hex 
+./bin/cltool -c=/dev/ttyUSB0 -baud=921600 -msgINS2
+```
 
 ## Installation
 This is a ROS package, with the InertialSenseSDK as a submodule, so just create a catkin workspace, clone this into the `src` folder, pull down the submodule and build
