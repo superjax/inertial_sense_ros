@@ -1,11 +1,12 @@
+#pragma once
+
 #include <stdio.h>
 #include <iostream>
 #include <algorithm>
 #include <string>
+#include <cstdlib>
 
-#include "ISComm.h"
-//#include "serial.h"
-#include "serialPortPlatform.h"
+#include "InertialSense.h"
 
 #include "ros/ros.h"
 #include "ros/timer.h"
@@ -20,11 +21,8 @@
 #include "std_msgs/Header.h"
 
 # define GPS_UNIX_OFFSET 315964800 // GPS time started on 6/1/1980 while UNIX time started 1/1/1970 this is the difference between those in seconds
-# define LEAP_SECONDS 18 // GPS time does not have leap seconds, UNIX does (as of 1/1/2017 - next one is probably in 2020 sometime unless there is some crazy earthquake or nuclear blast) 
-# define UNIX_TO_GPS_OFFSET (GPS_UNIX_OFFSET - LEAP_SECONDS) 
-
-#define BUFFER_SIZE 512
-
+# define LEAP_SECONDS 18 // GPS time does not have leap seconds, UNIX does (as of 1/1/2017 - next one is probably in 2020 sometime unless there is some crazy earthquake or nuclear blast)
+# define UNIX_TO_GPS_OFFSET (GPS_UNIX_OFFSET - LEAP_SECONDS)
 
 class InertialSenseROS //: SerialListener
 {
@@ -83,7 +81,7 @@ private:
   void GPS_Info_callback(const gps_sat_t* const msg);
 
   ros_stream_t mag_;
-  void mag_callback(const magnetometer_t* const msg, int mag_number);
+  void mag_callback(const magnetometer_t* const msg);
 
   ros_stream_t baro_;
   void baro_callback(const barometer_t* const msg);
@@ -105,7 +103,7 @@ private:
   /**
    * @brief ros_time_from_week_and_tow
    * Get current ROS time from week and tow
-   * @param week Weeks since January 6th, 1980 
+   * @param week Weeks since January 6th, 1980
    * @param timeOfWeek Time of week (since Sunday morning) in seconds, GMT
    * @return equivalent ros::Time
    */
@@ -113,19 +111,19 @@ private:
   
   /**
    * @brief ros_time_from_start_time
-   * @param time - Time since boot up in seconds - Convert to GPS time of week by adding gps.towOffset 
+   * @param time - Time since boot up in seconds - Convert to GPS time of week by adding gps.towOffset
    * @return equivalent ros::Time
    */
   ros::Time ros_time_from_start_time(const double time);
   
   /**
-   * @brief ros_time_from_tow 
+   * @brief ros_time_from_tow
    * Get equivalent ros time from tow and internal week counter
    * @param tow Time of Week (seconds)
    * @return equivalent ros::Time
    */
   ros::Time ros_time_from_tow(const double tow);
-  double GPS_towOffset_ = 0; // The offset between GPS time-of-week and local time on the uINS 
+  double GPS_towOffset_ = 0; // The offset between GPS time-of-week and local time on the uINS
                              //  If this number is 0, then we have not yet got a fix
   uint64_t GPS_week_ = 0; // Week number to start of GPS_towOffset_ in GPS time
   // Time sync variables
@@ -141,14 +139,9 @@ private:
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
 
-  // Serial Connection to uINS
-//  Serial* serial_;
-  is_comm_instance_t comm_;
-  uint8_t message_buffer_[BUFFER_SIZE];
-  serial_port_t serial_;
-  bool got_flash_config = false;
-  nvm_flash_cfg_t flash_; // local copy of flash config
-
-//  InertialSense inertialSenseInterface_;
+  // Connection to the uINS
+  InertialSense IS_;
+  dev_info_t dev_info_;
+  nvm_flash_cfg_t flash_config_;
 };
 

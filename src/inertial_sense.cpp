@@ -5,6 +5,8 @@
 #include <tf/tf.h>
 #include <ros/console.h>
 
+#define SET_CALLBACK(DID, __rate_MS, __type, __cb_fun) IS_.BroadcastBinaryData(DID, (__rate_MS), [this](InertialSense*i, p_data_t* data, int pHandle){this->__cb_fun((__type*)data);});
+
 InertialSenseROS::InertialSenseROS() :
   nh_(), nh_private_("~"), initialized_(false)
 {
@@ -12,43 +14,40 @@ InertialSenseROS::InertialSenseROS() :
   nh_private_.param<int>("baudrate", baudrate_, 3000000);
   nh_private_.param<std::string>("frame_id", frame_id_, "body");
 
-  /// Connect to the uINS
-
-  memset(&serial_, 0, sizeof(serial_));
-  serialPortPlatformInit(&serial_);
+  /// Connect to the uINS 
   ROS_INFO("Connecting to serial port \"%s\", at %d baud", port_.c_str(), baudrate_);
-  if (serialPortOpen(&serial_, port_.c_str(), baudrate_, true) != 1)
+  if (! IS_.Open(port_.c_str(), baudrate_))
   {
     ROS_FATAL("inertialsense: Unable to open serial port \"%s\", at %d baud", port_.c_str(), baudrate_);
     exit(0);
   }
   else
-    ROS_INFO("Connected to uINS on \"%s\", at %d baud", port_.c_str(), baudrate_);
-  
-  // Initialize the IS parser
-  comm_.buffer = message_buffer_;
-  comm_.bufferSize = sizeof(message_buffer_);
-  is_comm_init(&comm_);
-  get_flash_config();
+  {
+    // Get the Device Info and the FlashConfig
+    dev_info_ = IS_.GetDeviceInfo();
+    flash_config_ = IS_.GetFlashConfig();
+
+    // Print if Successful
+    ROS_INFO("Connected to uINS %d on \"%s\", at %d baud", dev_info_.serialNumber, port_.c_str(), baudrate_);
+  }
 
   // Make sure the navigation rate is right, if it's not, then we need to change and reset it.
   int nav_dt_ms;
   if (nh_private_.getParam("navigation_dt_ms", nav_dt_ms))
   {
-    if (nav_dt_ms != flash_.startupNavDtMs)
+    if (nav_dt_ms != flash_config_.startupNavDtMs)
     {
-      int messageSize = is_comm_set_data(&comm_, DID_FLASH_CONFIG, offsetof(nvm_flash_cfg_t, startupNavDtMs), sizeof(uint32_t), &nav_dt_ms);
-      serialPortWrite(&serial_, message_buffer_, messageSize);
-      serialPortFlush(&serial_);
-      ROS_INFO("navigation rate change from %dms to %dms, resetting uINS to make change", flash_.startupNavDtMs, nav_dt_ms);
+      uint32_t data = nav_dt_ms;
+      IS_.SendData(DID_FLASH_CONFIG, (uint8_t*)(&data), sizeof(uint32_t), offsetof(nvm_flash_cfg_t, startupNavDtMs));
+      ROS_INFO("navigation rate change from %dms to %dms, resetting uINS to make change", flash_config_.startupNavDtMs, nav_dt_ms);
       reset_device();
       
       // Re-request flash config to confirm change
-      get_flash_config();
-      if (flash_.startupNavDtMs != nav_dt_ms)
-        ROS_ERROR("inertialsense: unable to change navigation rate from %dms to %dms", flash_.startupNavDtMs, nav_dt_ms);
+      flash_config_ = IS_.GetFlashConfig();
+      if (flash_config_.startupNavDtMs != nav_dt_ms)
+        ROS_ERROR("inertialsense: unable to change navigation rate from %dms to %dms", flash_config_.startupNavDtMs, nav_dt_ms);
       else
-        ROS_INFO("Set navigation rate to %dms", flash_.startupNavDtMs);
+        ROS_INFO("Set navigation rate to %dms", flash_config_.startupNavDtMs);
     }
   }
   
@@ -57,8 +56,7 @@ InertialSenseROS::InertialSenseROS() :
   multi_mag_cal_srv_ = nh_.advertiseService("multi_axis_mag_cal", &InertialSenseROS::perform_multi_mag_cal_srv_callback, this);
   
   // Stop all broadcasts
-  uint32_t messageSize = is_comm_stop_broadcasts(&comm_);
-  serialPortWrite(&serial_, message_buffer_, messageSize);
+  IS_.StopBroadcasts();
 
   /////////////////////////////////////////////////////////
   /// PARAMETER CONFIGURATION
@@ -77,17 +75,17 @@ InertialSenseROS::InertialSenseROS() :
   /////////////////////////////////////////////////////////
   /// DATA STREAMS CONFIGURATION
   /////////////////////////////////////////////////////////
-  
-  uint32_t rmcBits = RMC_BITS_GPS_NAV | RMC_BITS_STROBE_IN_TIME; // we always need GPS for time synchronization
+
+  SET_CALLBACK(DID_GPS_NAV, flash_config_.startupGPSDtMs, gps_nav_t, GPS_callback); // we always need GPS for Fix status
+  SET_CALLBACK(DID_STROBE_IN_TIME, 100, strobe_in_time_t, strobe_in_time_callback); // we always want the strobe
   nh_private_.param<bool>("stream_INS", INS_.enabled, true);
   if (INS_.enabled)
   {
     INS_.pub = nh_.advertise<nav_msgs::Odometry>("ins", 1);
-    rmcBits |= RMC_BITS_DUAL_IMU | RMC_BITS_INS1 | RMC_BITS_INS2;
-    
-    // Request covariance information
-    messageSize = is_comm_get_data(&comm_, DID_INL2_VARIANCE, 0, 0, nav_dt_ms);
-    serialPortWrite(&serial_, message_buffer_, messageSize);
+    SET_CALLBACK(DID_INS_1, nav_dt_ms, ins_1_t, INS1_callback);
+    SET_CALLBACK(DID_INS_2, nav_dt_ms, ins_2_t, INS2_callback);
+    SET_CALLBACK(DID_DUAL_IMU, nav_dt_ms, dual_imu_t, IMU_callback);
+    SET_CALLBACK(DID_INL2_VARIANCE, nav_dt_ms, inl2_variance_t, INS_variance_callback);
   }
 
   // Set up the IMU ROS stream
@@ -95,8 +93,9 @@ InertialSenseROS::InertialSenseROS() :
   if (IMU_.enabled)
   {
     IMU_.pub = nh_.advertise<sensor_msgs::Imu>("imu", 1);
-//    IMU_.pub2 = nh_.advertise<sensor_msgs::Imu>("imu2", 1);
-    rmcBits |= RMC_BITS_DUAL_IMU | RMC_BITS_INS1 | RMC_BITS_INS2;
+    SET_CALLBACK(DID_INS_1, nav_dt_ms, ins_1_t, INS1_callback);
+    SET_CALLBACK(DID_INS_2, nav_dt_ms, ins_2_t, INS2_callback);
+    SET_CALLBACK(DID_DUAL_IMU, nav_dt_ms, dual_imu_t, IMU_callback);
   }
 
   // Set up the GPS ROS stream - we always need GPS information for time sync, just don't always need to publish it
@@ -111,7 +110,7 @@ InertialSenseROS::InertialSenseROS() :
   if (GPS_info_.enabled)
   {
     GPS_info_.pub = nh_.advertise<inertial_sense::GPSInfo>("gps/info", 1);
-    rmcBits |= RMC_BITS_GPS1_SAT;
+    SET_CALLBACK(DID_GPS1_SAT, flash_config_.startupGPSDtMs, gps_sat_t, GPS_Info_callback);
   }
 
   // Set up the magnetometer ROS stream
@@ -120,7 +119,7 @@ InertialSenseROS::InertialSenseROS() :
   {
     mag_.pub = nh_.advertise<sensor_msgs::MagneticField>("mag", 1);
 //    mag_.pub2 = nh_.advertise<sensor_msgs::MagneticField>("mag2", 1);
-    rmcBits |= RMC_BITS_MAGNETOMETER1;
+    SET_CALLBACK(DID_MAGNETOMETER_1, nav_dt_ms, magnetometer_t, mag_callback);
   }
 
   // Set up the barometer ROS stream
@@ -128,7 +127,7 @@ InertialSenseROS::InertialSenseROS() :
   if (baro_.enabled)
   {
     baro_.pub = nh_.advertise<sensor_msgs::FluidPressure>("baro", 1);
-    rmcBits |= RMC_BITS_BAROMETER;
+    SET_CALLBACK(DID_BAROMETER, nav_dt_ms, barometer_t, baro_callback);
   }
 
   // Set up the preintegrated IMU (coning and sculling integral) ROS stream
@@ -136,12 +135,10 @@ InertialSenseROS::InertialSenseROS() :
   if (dt_vel_.enabled)
   {
     dt_vel_.pub = nh_.advertise<inertial_sense::PreIntIMU>("preint_imu", 1);
-    rmcBits |= RMC_BITS_PREINTEGRATED_IMU;
+    SET_CALLBACK(DID_PREINTEGRATED_IMU, nav_dt_ms, preintegrated_imu_t, preint_IMU_callback);
   }
-  
-  messageSize = is_comm_get_data_rmc(&comm_, rmcBits);
-  serialPortWrite(&serial_, message_buffer_, messageSize);
-  
+
+
   /////////////////////////////////////////////////////////
   /// ASCII OUTPUT CONFIGURATION
   /////////////////////////////////////////////////////////
@@ -156,8 +153,7 @@ InertialSenseROS::InertialSenseROS() :
   msgs.gpgll = (NMEA_message_configuration & NMEA_GPGLL) ? NMEA_rate : 0;
   msgs.gpgsa = (NMEA_message_configuration & NMEA_GPGSA) ? NMEA_rate : 0;
   msgs.gprmc = (NMEA_message_configuration & NMEA_GPRMC) ? NMEA_rate : 0;
-  messageSize = is_comm_set_data(&comm_, DID_ASCII_BCAST_PERIOD, 0, sizeof(ascii_msgs_t), &msgs);
-  serialPortWrite(&serial_, message_buffer_, messageSize);  
+  IS_.SendData(DID_ASCII_BCAST_PERIOD, (uint8_t*)(&msgs), sizeof(ascii_msgs_t), 0);
 
   initialized_ = true;
 }
@@ -173,8 +169,7 @@ void InertialSenseROS::set_vector_flash_config(std::string param_name, uint32_t 
     v[i] = tmp[i];
   }
   
-  int messageSize = is_comm_set_data(&comm_, DID_FLASH_CONFIG, offset, sizeof(v), v);
-  serialPortWrite(&serial_, message_buffer_, messageSize);
+  IS_.SendData(DID_FLASH_CONFIG, reinterpret_cast<uint8_t*>(&v), sizeof(v), offset);
 }
 
 template <typename T>
@@ -182,28 +177,7 @@ void InertialSenseROS::set_flash_config(std::string param_name, uint32_t offset,
 {
   T tmp;
   nh_private_.param<T>(param_name, tmp, def);
-  int messageSize = is_comm_set_data(&comm_, DID_FLASH_CONFIG, offset, sizeof(T), &tmp);
-  serialPortWrite(&serial_, message_buffer_, messageSize);
-}
-
-void InertialSenseROS::get_flash_config()
-{
-  got_flash_config = false;
-  int messageSize = is_comm_get_data(&comm_, DID_FLASH_CONFIG, 0, 0, 0);
-  serialPortWrite(&serial_, message_buffer_, messageSize);
-  
-  // wait for flash config message to confirm connection
-  ros::Time start = ros::Time::now();
-  while (!got_flash_config && (ros::Time::now() - start).toSec() <= 3.0)
-    update();
-  if ((ros::Time::now() - start).toSec() >= 3.0)
-    ROS_FATAL("inertialsense: No response when requesting flash configuration from uINS on \"%s\", at %d baud", port_.c_str(), baudrate_);
-}
-
-void InertialSenseROS::flash_config_callback(const nvm_flash_cfg_t * const msg)
-{
-  got_flash_config = true;
-  flash_ = (*msg);
+  IS_.SendData(DID_FLASH_CONFIG, reinterpret_cast<uint8_t*>(&tmp), sizeof(T), offset);
 }
 
 void InertialSenseROS::INS1_callback(const ins_1_t * const msg)
@@ -323,76 +297,7 @@ void InertialSenseROS::GPS_callback(const gps_nav_t * const msg)
 
 void InertialSenseROS::update()
 {
-  uint8_t buffer[512];
-  int bytes_read = serialPortReadTimeout(&serial_, buffer, 512, 1);
-
-  for (int i = 0; i < bytes_read; i++)
-  {
-    uint32_t message_type = is_comm_parse(&comm_, buffer[i]);
-
-    if (message_type == DID_FLASH_CONFIG)
-    {
-      flash_config_callback((nvm_flash_cfg_t*) message_buffer_);
-      break;
-    }
-
-    if(initialized_)
-    {
-      switch (message_type)
-      {
-      case DID_NULL:
-        // no valid message yet
-        break;
-      case DID_INS_1:
-        INS1_callback((ins_1_t*) message_buffer_);
-        break;
-      case DID_INS_2:
-        INS2_callback((ins_2_t*) message_buffer_);
-        break;
-      case DID_INL2_VARIANCE:
-        INS_variance_callback((inl2_variance_t*) message_buffer_);
-        break;
-
-      case DID_DUAL_IMU:
-        IMU_callback((dual_imu_t*) message_buffer_);
-        break;
-
-      case DID_GPS_NAV:
-        GPS_callback((gps_nav_t*) message_buffer_);
-        break;
-
-      case DID_GPS1_SAT:
-        GPS_Info_callback((gps_sat_t*) message_buffer_);
-        break;
-
-      case DID_MAGNETOMETER_1:
-        mag_callback((magnetometer_t*) message_buffer_, 1);
-        break;
-      case DID_MAGNETOMETER_2:
-        mag_callback((magnetometer_t*) message_buffer_, 2);
-        break;
-
-      case DID_BAROMETER:
-        baro_callback((barometer_t*) message_buffer_);
-        break;
-
-      case DID_PREINTEGRATED_IMU:
-        preint_IMU_callback((preintegrated_imu_t*) message_buffer_);
-        break;
-      case DID_STROBE_IN_TIME:
-        strobe_in_time_callback((strobe_in_time_t*) message_buffer_);
-        break;
-
-      case -1:
-        bad_data_callback(message_buffer_);
-        break;
-
-      default:
-        ROS_INFO("Unhandled IS message %d", message_type);
-        break;
-      }
-    }
-  }
+  IS_.Update();
 }
 
 void InertialSenseROS::strobe_in_time_callback(const strobe_in_time_t * const msg)
@@ -421,7 +326,7 @@ void InertialSenseROS::GPS_Info_callback(const gps_sat_t* const msg)
 }
 
 
-void InertialSenseROS::mag_callback(const magnetometer_t* const msg, int mag_number)
+void InertialSenseROS::mag_callback(const magnetometer_t* const msg)
 {
   sensor_msgs::MagneticField mag_msg;
   mag_msg.header.stamp = ros_time_from_start_time(msg->time);
@@ -429,15 +334,8 @@ void InertialSenseROS::mag_callback(const magnetometer_t* const msg, int mag_num
   mag_msg.magnetic_field.x = msg->mag[0];
   mag_msg.magnetic_field.y = msg->mag[1];
   mag_msg.magnetic_field.z = msg->mag[2];
-  
-  if(mag_number == 1)
-  {
-    mag_.pub.publish(mag_msg);
-  }
-//  else
-//  {
-//    mag_.pub2.publish(mag_msg);
-//  }
+
+  mag_.pub.publish(mag_msg);
 }
 
 void InertialSenseROS::baro_callback(const barometer_t * const msg)
@@ -473,8 +371,7 @@ bool InertialSenseROS::perform_mag_cal_srv_callback(std_srvs::Trigger::Request &
   (void)req;
   res.success = true; 
   uint32_t single_axis_command = 1;
-  int messageSize = is_comm_set_data(&comm_, DID_MAG_CAL, offsetof(mag_cal_t, enMagRecal), sizeof(uint32_t), &single_axis_command);
-  serialPortWrite(&serial_, message_buffer_, messageSize);  
+  IS_.SendData(DID_MAG_CAL, reinterpret_cast<uint8_t*>(&single_axis_command), sizeof(uint32_t), offsetof(mag_cal_t, enMagRecal));
 }
 
 bool InertialSenseROS::perform_multi_mag_cal_srv_callback(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res)
@@ -482,26 +379,15 @@ bool InertialSenseROS::perform_multi_mag_cal_srv_callback(std_srvs::Trigger::Req
   (void)req;
   res.success = true; 
   uint32_t multi_axis_command = 0;
-  int messageSize = is_comm_set_data(&comm_, DID_MAG_CAL, offsetof(mag_cal_t, enMagRecal), sizeof(uint32_t), &multi_axis_command);
-  serialPortWrite(&serial_, message_buffer_, messageSize);  
+  IS_.SendData(DID_MAG_CAL, reinterpret_cast<uint8_t*>(&multi_axis_command), sizeof(uint32_t), offsetof(mag_cal_t, enMagRecal));
 }
 
 void InertialSenseROS::reset_device()
 {
   // send reset command
   uint32_t reset_command = 99;
-  int messageSize = is_comm_set_data(&comm_, DID_CONFIG, offsetof(config_t, system), sizeof(uint32_t), &reset_command);
-  serialPortWrite(&serial_, message_buffer_, messageSize);
+  IS_.SendData(DID_CONFIG, reinterpret_cast<uint8_t*>(&reset_command), sizeof(uint32_t), offsetof(config_t, system));
   sleep(3);
-}
-
-void InertialSenseROS::bad_data_callback(const uint8_t *buf)
-{
-  std::cout << "\nbad data: " << std::endl;
-  for (int i = 0; i < BUFFER_SIZE; i++)
-  {
-    printf("%x ", buf[i]);
-  }
 }
 
 ros::Time InertialSenseROS::ros_time_from_week_and_tow(const uint32_t week, const double timeOfWeek)
