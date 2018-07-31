@@ -410,7 +410,7 @@ bool InertialSenseROS::update_firmware_srv_callback(inertial_sense::FirmwareUpda
         res.message = results[0].error;
         return false;
     }
-    IS_.Open(port_, baudrate_);
+    IS_.Open(port_.c_str(), baudrate_);
     return true;
 }
 
