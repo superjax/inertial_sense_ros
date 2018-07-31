@@ -147,3 +147,5 @@ Topics are enabled and disabled using parameters.  By default, only the `ins/` t
   - Put INS into single axis magnetometer calibration mode.  This is typically used if the uINS is rigidly mounted to a heavy vehicle that will not undergo large roll or pitch motions, such as a car. After this call, the uINS must perform a single orbit around one axis (i.g. drive in a circle) to calibrate the magnetometer [more info](http://docs.inertialsense.com/user-manual/Setup_Integration/magnetometer_calibration/)
 - `multi_axis_mag_cal` (std_srvs/Trigger)
   - Put INS into multi axis magnetometer calibration mode.  This is typically used if the uINS is not mounted to a vehicle, or a lightweight vehicle such as a drone.  Simply rotate the uINS around all axes until the light on the uINS turns blue [more info](http://docs.inertialsense.com/user-manual/Setup_Integration/magnetometer_calibration/)
+- `firmware_update` (inertial_sense/FirmwareUpdate)
+  - Updates firmware to the `.hex` file supplied (use absolute filenames)

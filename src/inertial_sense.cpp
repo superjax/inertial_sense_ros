@@ -5,7 +5,7 @@
 #include <tf/tf.h>
 #include <ros/console.h>
 
-#define SET_CALLBACK(DID, __rate_MS, __type, __cb_fun) IS_.BroadcastBinaryData(DID, (__rate_MS), [this](InertialSense*i, p_data_t* data, int pHandle){this->__cb_fun((__type*)data);});
+#define SET_CALLBACK(DID, __rate_MS, __type, __cb_fun) IS_.BroadcastBinaryData(DID, (__rate_MS), [this](InertialSense*i, p_data_t* data, int pHandle){this->__cb_fun(reinterpret_cast<__type*>(data));});
 
 InertialSenseROS::InertialSenseROS() :
   nh_(), nh_private_("~"), initialized_(false)
@@ -54,6 +54,7 @@ InertialSenseROS::InertialSenseROS() :
   /// Start Up ROS service servers
   mag_cal_srv_ = nh_.advertiseService("single_axis_mag_cal", &InertialSenseROS::perform_mag_cal_srv_callback, this);
   multi_mag_cal_srv_ = nh_.advertiseService("multi_axis_mag_cal", &InertialSenseROS::perform_multi_mag_cal_srv_callback, this);
+  firmware_update_srv_ = nh_.advertiseService("firmware_update", &InertialSenseROS::update_firmware_srv_callback, this);
   
   // Stop all broadcasts
   IS_.StopBroadcasts();
@@ -76,6 +77,7 @@ InertialSenseROS::InertialSenseROS() :
   /// DATA STREAMS CONFIGURATION
   /////////////////////////////////////////////////////////
 
+  uint32_t rmcBits = RMC_BITS_GPS_NAV | RMC_BITS_STROBE_IN_TIME;
   SET_CALLBACK(DID_GPS_NAV, flash_config_.startupGPSDtMs, gps_nav_t, GPS_callback); // we always need GPS for Fix status
   SET_CALLBACK(DID_STROBE_IN_TIME, 100, strobe_in_time_t, strobe_in_time_callback); // we always want the strobe
   nh_private_.param<bool>("stream_INS", INS_.enabled, true);
@@ -86,6 +88,7 @@ InertialSenseROS::InertialSenseROS() :
     SET_CALLBACK(DID_INS_2, nav_dt_ms, ins_2_t, INS2_callback);
     SET_CALLBACK(DID_DUAL_IMU, nav_dt_ms, dual_imu_t, IMU_callback);
     SET_CALLBACK(DID_INL2_VARIANCE, nav_dt_ms, inl2_variance_t, INS_variance_callback);
+    rmcBits |= RMC_BITS_INS1 | RMC_BITS_INS2 | RMC_BITS_DUAL_IMU;
   }
 
   // Set up the IMU ROS stream
@@ -96,6 +99,7 @@ InertialSenseROS::InertialSenseROS() :
     SET_CALLBACK(DID_INS_1, nav_dt_ms, ins_1_t, INS1_callback);
     SET_CALLBACK(DID_INS_2, nav_dt_ms, ins_2_t, INS2_callback);
     SET_CALLBACK(DID_DUAL_IMU, nav_dt_ms, dual_imu_t, IMU_callback);
+    rmcBits |= RMC_BITS_INS1 | RMC_BITS_INS2 | RMC_BITS_DUAL_IMU;
   }
 
   // Set up the GPS ROS stream - we always need GPS information for time sync, just don't always need to publish it
@@ -111,6 +115,7 @@ InertialSenseROS::InertialSenseROS() :
   {
     GPS_info_.pub = nh_.advertise<inertial_sense::GPSInfo>("gps/info", 1);
     SET_CALLBACK(DID_GPS1_SAT, flash_config_.startupGPSDtMs, gps_sat_t, GPS_Info_callback);
+    rmcBits |= RMC_BITS_GPS1_SAT;
   }
 
   // Set up the magnetometer ROS stream
@@ -120,6 +125,7 @@ InertialSenseROS::InertialSenseROS() :
     mag_.pub = nh_.advertise<sensor_msgs::MagneticField>("mag", 1);
 //    mag_.pub2 = nh_.advertise<sensor_msgs::MagneticField>("mag2", 1);
     SET_CALLBACK(DID_MAGNETOMETER_1, nav_dt_ms, magnetometer_t, mag_callback);
+    rmcBits |= RMC_BITS_MAGNETOMETER1;
   }
 
   // Set up the barometer ROS stream
@@ -128,6 +134,7 @@ InertialSenseROS::InertialSenseROS() :
   {
     baro_.pub = nh_.advertise<sensor_msgs::FluidPressure>("baro", 1);
     SET_CALLBACK(DID_BAROMETER, nav_dt_ms, barometer_t, baro_callback);
+    rmcBits |= RMC_BITS_BAROMETER;
   }
 
   // Set up the preintegrated IMU (coning and sculling integral) ROS stream
@@ -136,7 +143,9 @@ InertialSenseROS::InertialSenseROS() :
   {
     dt_vel_.pub = nh_.advertise<inertial_sense::PreIntIMU>("preint_imu", 1);
     SET_CALLBACK(DID_PREINTEGRATED_IMU, nav_dt_ms, preintegrated_imu_t, preint_IMU_callback);
+    rmcBits |= RMC_BITS_PREINTEGRATED_IMU;
   }
+  IS_.BroadcastBinaryDataRmcPreset(rmcBits);
 
 
   /////////////////////////////////////////////////////////
@@ -388,6 +397,19 @@ void InertialSenseROS::reset_device()
   uint32_t reset_command = 99;
   IS_.SendData(DID_CONFIG, reinterpret_cast<uint8_t*>(&reset_command), sizeof(uint32_t), offsetof(config_t, system));
   sleep(3);
+}
+
+bool InertialSenseROS::update_firmware_srv_callback(inertial_sense::FirmwareUpdate::Request &req, inertial_sense::FirmwareUpdate::Response &res)
+{
+    IS_.Close();
+    vector<InertialSense::bootloader_result_t> results = IS_.BootloadFile("*", req.filename, 921600);
+    if (!results[0].error.empty())
+    {
+        res.success = false;
+        res.message = results[0].error;
+        return false;
+    }
+    return true;
 }
 
 ros::Time InertialSenseROS::ros_time_from_week_and_tow(const uint32_t week, const double timeOfWeek)

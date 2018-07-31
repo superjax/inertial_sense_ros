@@ -21,6 +21,11 @@ add_message_files(
   PreIntIMU.msg
 )
 
+add_service_files(
+  FILES
+  FirmwareUpdate.srv
+  )
+
 generate_messages(
   DEPENDENCIES
   std_msgs
