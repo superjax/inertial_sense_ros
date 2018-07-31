@@ -5,7 +5,8 @@
 #include <tf/tf.h>
 #include <ros/console.h>
 
-#define SET_CALLBACK(DID, __rate_MS, __type, __cb_fun) IS_.BroadcastBinaryData(DID, (__rate_MS), [this](InertialSense*i, p_data_t* data, int pHandle){this->__cb_fun(reinterpret_cast<__type*>(data));});
+#define SET_CALLBACK(DID, __rate_MS, __type, __cb_fun) IS_.BroadcastBinaryData(DID, (__rate_MS), [this](InertialSense*i, p_data_t* data, int pHandle){this->__cb_fun(reinterpret_cast<__type*>(data->buf));});
+
 
 InertialSenseROS::InertialSenseROS() :
   nh_(), nh_private_("~"), initialized_(false)
