@@ -17,7 +17,8 @@ int32 cno 								# mean carrier noise ratio (dBHz)
 float64 latitude 						# latitude (degrees) 
 float64 longitude						# longitude (degrees)
 float64 altitude						# height above ellipsoid (not MSL) (m)
-geometry_msgs/Vector3 linear_velocity 	# Velocity (m/s) in NED
+geometry_msgs/Vector3 posEcef           # Position (m) in ECEF
+geometry_msgs/Vector3 velEcef       	# Velocity (m/s) in ECEF
 float32 hMSL							# height above MSL
 float32 hAcc							# horizontal accuracy
 float32 vAcc							# vertical accuracy
