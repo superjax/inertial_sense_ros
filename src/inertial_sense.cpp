@@ -73,6 +73,47 @@ InertialSenseROS::InertialSenseROS() :
   set_flash_config<int>("dynamic_model", offsetof(nvm_flash_cfg_t, insDynModel), 8);
   set_flash_config<int>("ser1_baud_rate", offsetof(nvm_flash_cfg_t, ser1BaudRate), 115200);
 
+  /////////////////////////////////////////////////////////
+  /// RTK Configuration
+  /////////////////////////////////////////////////////////
+  bool RTK_rover, RTK_base;
+  nh_private_.param<bool>("RTK_rover", RTK_rover, false);
+  nh_private_.param<bool>("RTK_base", RTK_base, false);
+  std::string RTK_server_IP, RTK_correction_type;
+  int RTK_server_port;
+  nh_private_.param<std::string>("RTK_server_IP", RTK_server_IP, "127.0.0.1");
+  nh_private_.param<int>("RTK_server_IP", RTK_server_port, 12503);
+  nh_private_.param<std::string>("RTK_correction_type", RTK_correction_type, "UBLOX");
+  std::string RTK_connection = RTK_server_IP + ":" + std::to_string(RTK_server_port) + ":" + RTK_correction_type;
+  ROS_ERROR_COND(RTK_rover && RTK_base, "unable to configure uINS to be both RTK rover and base - default to rover");
+
+  if (RTK_rover)
+  {
+    ROS_INFO("InertialSense: Configured as RTK Rover");
+    RTK_state_ = RTK_ROVER;
+    uint32_t RTKCfgBits = RTK_CFG_BITS_GPS1_RTK_ROVER;
+    IS_.SendData(DID_FLASH_CONFIG, reinterpret_cast<uint8_t*>(&RTKCfgBits), sizeof(RTKCfgBits), offsetof(nvm_flash_cfg_t, RTKCfgBits));
+
+    if (IS_.OpenServerConnection(RTK_connection))
+      ROS_INFO_STREAM("Successfully connected to " << RTK_connection << " as RTK server");
+    else
+      ROS_ERROR_STREAM("Failed to connect to base server at " << RTK_connection);
+    RTK_info_.pub = nh_.advertise<inertial_sense::RTKInfo>("RTK_info", 10);
+  }
+
+  else if (RTK_base)
+  {
+    ROS_INFO("InertialSense: Configured as RTK Base");
+    RTK_state_ = RTK_BASE;
+    uint32_t RTKCfgBits = RTK_CFG_BITS_BASE_OUTPUT_GPS1_UBLOX_SER0;
+    IS_.SendData(DID_FLASH_CONFIG, reinterpret_cast<uint8_t*>(&RTKCfgBits), sizeof(RTKCfgBits), offsetof(nvm_flash_cfg_t, RTKCfgBits));
+
+    if (IS_.CreateHost(RTK_connection))
+      ROS_INFO_STREAM("Successfully created " << RTK_connection << " as RTK server");
+    else
+      ROS_ERROR_STREAM("Failed to create base server at " << RTK_connection);
+  }
+
 
   /////////////////////////////////////////////////////////
   /// DATA STREAMS CONFIGURATION

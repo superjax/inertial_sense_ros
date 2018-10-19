@@ -17,6 +17,8 @@
 #include "inertial_sense/GPSInfo.h"
 #include "inertial_sense/PreIntIMU.h"
 #include "inertial_sense/FirmwareUpdate.h"
+#include "inertial_sense/RTKCorrection.h"
+#include "inertial_sense/RTKInfo.h"
 #include "nav_msgs/Odometry.h"
 #include "std_srvs/Trigger.h"
 #include "std_msgs/Header.h"
@@ -105,6 +107,16 @@ private:
   bool update_firmware_srv_callback(inertial_sense::FirmwareUpdate::Request & req, inertial_sense::FirmwareUpdate::Response & res);
   
   void publishGPS();
+
+  typedef enum
+  {
+    RTK_NONE,
+    RTK_ROVER,
+    RTK_BASE
+  } rtk_state_t;
+  rtk_state_t RTK_state_ = RTK_NONE;
+  ros_stream_t RTK_info_;
+
   
   /**
    * @brief ros_time_from_week_and_tow
