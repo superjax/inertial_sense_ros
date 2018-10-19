@@ -53,6 +53,7 @@ InertialSenseROS::InertialSenseROS() :
   }
   
   /// Start Up ROS service servers
+  refLLA_set_srv_ = nh_.advertiseService("set_refLLA", &InertialSenseROS::set_current_position_as_refLLA, this);
   mag_cal_srv_ = nh_.advertiseService("single_axis_mag_cal", &InertialSenseROS::perform_mag_cal_srv_callback, this);
   multi_mag_cal_srv_ = nh_.advertiseService("multi_axis_mag_cal", &InertialSenseROS::perform_multi_mag_cal_srv_callback, this);
   firmware_update_srv_ = nh_.advertiseService("firmware_update", &InertialSenseROS::update_firmware_srv_callback, this);
@@ -82,7 +83,7 @@ InertialSenseROS::InertialSenseROS() :
   std::string RTK_server_IP, RTK_correction_type;
   int RTK_server_port;
   nh_private_.param<std::string>("RTK_server_IP", RTK_server_IP, "127.0.0.1");
-  nh_private_.param<int>("RTK_server_IP", RTK_server_port, 12503);
+  nh_private_.param<int>("RTK_server_port", RTK_server_port, 12503);
   nh_private_.param<std::string>("RTK_correction_type", RTK_correction_type, "UBLOX");
   std::string RTK_connection = RTK_server_IP + ":" + std::to_string(RTK_server_port) + ":" + RTK_correction_type;
   ROS_ERROR_COND(RTK_rover && RTK_base, "unable to configure uINS to be both RTK rover and base - default to rover");
@@ -95,10 +96,14 @@ InertialSenseROS::InertialSenseROS() :
     IS_.SendData(DID_FLASH_CONFIG, reinterpret_cast<uint8_t*>(&RTKCfgBits), sizeof(RTKCfgBits), offsetof(nvm_flash_cfg_t, RTKCfgBits));
 
     if (IS_.OpenServerConnection(RTK_connection))
-      ROS_INFO_STREAM("Successfully connected to " << RTK_connection << " as RTK server");
+      ROS_INFO_STREAM("Successfully connected to " << RTK_connection << " RTK server");
     else
       ROS_ERROR_STREAM("Failed to connect to base server at " << RTK_connection);
-    RTK_info_.pub = nh_.advertise<inertial_sense::RTKInfo>("RTK_info", 10);
+
+    SET_CALLBACK(DID_GPS1_RTK_MISC, nav_dt_ms, gps_rtk_misc_t, RTK_Misc_callback);
+    SET_CALLBACK(DID_GPS1_RTK_REL, nav_dt_ms, gps_rtk_rel_t, RTK_Rel_callback);
+    RTK_.pub = nh_.advertise<inertial_sense::RTKInfo>("RTK_info", 10);
+    RTK_.pub2 = nh_.advertise<inertial_sense::RTKRel>("RTK_rel", 10);
   }
 
   else if (RTK_base)
@@ -291,6 +296,10 @@ void InertialSenseROS::INS2_callback(const ins_2_t * const msg)
   odom_msg.twist.twist.linear.y = msg->uvw[1];
   odom_msg.twist.twist.linear.z = msg->uvw[2];
 
+  lla_[0] = msg->lla[0];
+  lla_[1] = msg->lla[1];
+  lla_[2] = msg->lla[2];
+
   odom_msg.twist.twist.angular.x = imu1_msg.angular_velocity.x;
   odom_msg.twist.twist.angular.y = imu1_msg.angular_velocity.y;
   odom_msg.twist.twist.angular.z = imu1_msg.angular_velocity.z;
@@ -441,6 +450,56 @@ void InertialSenseROS::preint_IMU_callback(const preintegrated_imu_t * const msg
   preintIMU_msg.dt = msg->dt;
 
   dt_vel_.pub.publish(preintIMU_msg);
+}
+
+void InertialSenseROS::RTK_Misc_callback(const gps_rtk_misc_t* const msg)
+{
+  if (RTK_.enabled)
+  {
+    inertial_sense::RTKInfo rtk_info;
+    rtk_info.header.stamp = ros_time_from_week_and_tow(GPS_week_, msg->timeOfWeekMs/1000.0);
+    rtk_info.baseAntcount = msg->baseAntennaCount;
+    rtk_info.baseEph = msg->baseBeidouEphemerisCount + msg->baseGalileoEphemerisCount + msg->baseGlonassEphemerisCount
+                       + msg->baseGpsEphemerisCount;
+    rtk_info.baseObs = msg->baseBeidouObservationCount + msg->baseGalileoObservationCount + msg->baseGlonassObservationCount
+                       + msg->baseGpsObservationCount;
+    rtk_info.BaseLLA[0] = msg->baseLla[0];
+    rtk_info.BaseLLA[1] = msg->baseLla[1];
+    rtk_info.BaseLLA[2] = msg->baseLla[2];
+
+    rtk_info.roverEph = msg->roverBeidouEphemerisCount + msg->roverGalileoEphemerisCount + msg->roverGlonassEphemerisCount
+                        + msg->roverGpsEphemerisCount;
+    rtk_info.roverObs = msg->roverBeidouObservationCount + msg->roverGalileoObservationCount + msg->roverGlonassObservationCount
+                        + msg->roverGpsObservationCount;
+    rtk_info.cycle_slip_count = msg->cycleSlipCount;
+    RTK_.pub.publish(rtk_info);
+  }
+}
+
+
+void InertialSenseROS::RTK_Rel_callback(const gps_rtk_rel_t* const msg)
+{
+  if (RTK_.enabled)
+  {
+    inertial_sense::RTKRel rtk_rel;
+    rtk_rel.header.stamp = ros_time_from_week_and_tow(GPS_week_, msg->timeOfWeekMs/1000.0);
+    rtk_rel.differential_age = msg->differentialAge;
+    rtk_rel.ar_ratio = msg->arRatio;
+    rtk_rel.vector_to_base.x = msg->vectorToBase[0];
+    rtk_rel.vector_to_base.y = msg->vectorToBase[1];
+    rtk_rel.vector_to_base.z = msg->vectorToBase[2];
+    rtk_rel.differential_age = msg->distanceToBase;
+    rtk_rel.heading_to_base = msg->headingToBase;
+    RTK_.pub2.publish(rtk_rel);
+  }
+
+}
+
+bool InertialSenseROS::set_current_position_as_refLLA(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res)
+{
+  (void)req;
+  res.success = true;
+  IS_.SendData(DID_FLASH_CONFIG, reinterpret_cast<uint8_t*>(&lla_), sizeof(lla_), offsetof(nvm_flash_cfg_t, refLla));
 }
 
 bool InertialSenseROS::perform_mag_cal_srv_callback(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res)

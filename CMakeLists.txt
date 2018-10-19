@@ -20,7 +20,7 @@ add_message_files(
   GPSInfo.msg
   PreIntIMU.msg
   RTKInfo.msg
-  RTKCorrection.msg
+  RTKRel.msg
 )
 
 add_service_files(

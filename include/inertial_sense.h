@@ -17,7 +17,7 @@
 #include "inertial_sense/GPSInfo.h"
 #include "inertial_sense/PreIntIMU.h"
 #include "inertial_sense/FirmwareUpdate.h"
-#include "inertial_sense/RTKCorrection.h"
+#include "inertial_sense/RTKRel.h"
 #include "inertial_sense/RTKInfo.h"
 #include "nav_msgs/Odometry.h"
 #include "std_srvs/Trigger.h"
@@ -102,6 +102,8 @@ private:
   ros::ServiceServer mag_cal_srv_;
   ros::ServiceServer multi_mag_cal_srv_;
   ros::ServiceServer firmware_update_srv_;
+  ros::ServiceServer refLLA_set_srv_;
+  bool set_current_position_as_refLLA(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response & res);
   bool perform_mag_cal_srv_callback(std_srvs::Trigger::Request & req, std_srvs::Trigger::Response & res);
   bool perform_multi_mag_cal_srv_callback(std_srvs::Trigger::Request & req, std_srvs::Trigger::Response & res);
   bool update_firmware_srv_callback(inertial_sense::FirmwareUpdate::Request & req, inertial_sense::FirmwareUpdate::Response & res);
@@ -115,7 +117,9 @@ private:
     RTK_BASE
   } rtk_state_t;
   rtk_state_t RTK_state_ = RTK_NONE;
-  ros_stream_t RTK_info_;
+  ros_stream_t RTK_;
+  void RTK_Misc_callback(const gps_rtk_misc_t* const msg);
+  void RTK_Rel_callback(const gps_rtk_rel_t* const msg);
 
   
   /**
@@ -149,6 +153,7 @@ private:
   bool got_first_message_ = false; // Flag to capture first uINS start time guess
 
   // Data to hold on to in between callbacks
+  double lla_[3];
   sensor_msgs::Imu imu1_msg, imu2_msg;
   nav_msgs::Odometry odom_msg;
   inertial_sense::GPS gps_msg;
