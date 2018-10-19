@@ -85,7 +85,7 @@ InertialSenseROS::InertialSenseROS() :
   nh_private_.param<std::string>("RTK_server_IP", RTK_server_IP, "127.0.0.1");
   nh_private_.param<int>("RTK_server_port", RTK_server_port, 12503);
   nh_private_.param<std::string>("RTK_correction_type", RTK_correction_type, "UBLOX");
-  std::string RTK_connection = RTK_server_IP + ":" + std::to_string(RTK_server_port) + ":" + RTK_correction_type;
+  std::string RTK_connection =  RTK_correction_type + ":" + RTK_server_IP + ":" + std::to_string(RTK_server_port);
   ROS_ERROR_COND(RTK_rover && RTK_base, "unable to configure uINS to be both RTK rover and base - default to rover");
 
   if (RTK_rover)
@@ -492,7 +492,7 @@ void InertialSenseROS::RTK_Rel_callback(const gps_rtk_rel_t* const msg)
     rtk_rel.vector_to_base.x = msg->vectorToBase[0];
     rtk_rel.vector_to_base.y = msg->vectorToBase[1];
     rtk_rel.vector_to_base.z = msg->vectorToBase[2];
-    rtk_rel.differential_age = msg->distanceToBase;
+    rtk_rel.distance_to_base = msg->distanceToBase;
     rtk_rel.heading_to_base = msg->headingToBase;
     RTK_.pub2.publish(rtk_rel);
   }
