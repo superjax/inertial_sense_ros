@@ -109,7 +109,11 @@ InertialSenseROS::InertialSenseROS() :
     IS_.SendData(DID_FLASH_CONFIG, reinterpret_cast<uint8_t*>(&RTKCfgBits), sizeof(RTKCfgBits), offsetof(nvm_flash_cfg_t, RTKCfgBits));
 
     if (IS_.CreateHost(RTK_connection))
+    {
       ROS_INFO_STREAM("Successfully created " << RTK_connection << " as RTK server");
+      initialized_ = true;
+      return;
+    }
     else
       ROS_ERROR_STREAM("Failed to create base server at " << RTK_connection);
   }
