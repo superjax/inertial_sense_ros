@@ -102,12 +102,14 @@ InertialSenseROS::InertialSenseROS() :
 
     SET_CALLBACK(DID_GPS1_RTK_MISC, nav_dt_ms, gps_rtk_misc_t, RTK_Misc_callback);
     SET_CALLBACK(DID_GPS1_RTK_REL, nav_dt_ms, gps_rtk_rel_t, RTK_Rel_callback);
+    RTK_.enabled = true;
     RTK_.pub = nh_.advertise<inertial_sense::RTKInfo>("RTK_info", 10);
     RTK_.pub2 = nh_.advertise<inertial_sense::RTKRel>("RTK_rel", 10);
   }
 
   else if (RTK_base)
   {
+    RTK_.enabled = true;
     ROS_INFO("InertialSense: Configured as RTK Base");
     RTK_state_ = RTK_BASE;
     uint32_t RTKCfgBits = RTK_CFG_BITS_BASE_OUTPUT_GPS1_UBLOX_SER0;
@@ -197,6 +199,8 @@ InertialSenseROS::InertialSenseROS() :
     SET_CALLBACK(DID_PREINTEGRATED_IMU, nav_dt_ms, preintegrated_imu_t, preint_IMU_callback);
     rmcBits |= RMC_BITS_PREINTEGRATED_IMU;
   }
+  if (RTK_state_ != RTK_NONE)
+    rmcBits |= RMC_BITS_GPS1_RTK_REL | RMC_BITS_GPS1_RTK_POS | RMC_BITS_GPS1_RTK_MISC;
   IS_.BroadcastBinaryDataRmcPreset(rmcBits);
 
 
