@@ -103,8 +103,8 @@ InertialSenseROS::InertialSenseROS() :
     SET_CALLBACK(DID_GPS1_RTK_MISC, nav_dt_ms, gps_rtk_misc_t, RTK_Misc_callback);
     SET_CALLBACK(DID_GPS1_RTK_REL, nav_dt_ms, gps_rtk_rel_t, RTK_Rel_callback);
     RTK_.enabled = true;
-    RTK_.pub = nh_.advertise<inertial_sense::RTKInfo>("RTK_info", 10);
-    RTK_.pub2 = nh_.advertise<inertial_sense::RTKRel>("RTK_rel", 10);
+    RTK_.pub = nh_.advertise<inertial_sense::RTKInfo>("RTK/info", 10);
+    RTK_.pub2 = nh_.advertise<inertial_sense::RTKRel>("RTK/rel", 10);
   }
 
   else if (RTK_base)
@@ -166,9 +166,9 @@ InertialSenseROS::InertialSenseROS() :
   nh_private_.param<bool>("stream_GPS_raw", GPS_eph_.enabled, false);
   if (GPS_obs_.enabled)
   {
-    GPS_obs_.pub = nh_.advertise<inertial_sense::GNSSObservation>("gps_raw/obs", 50);
-    GPS_obs_.pub = nh_.advertise<inertial_sense::GNSSEphemeris>("gps_raw/eph", 50);
-    GPS_obs_.pub = nh_.advertise<inertial_sense::GlonassEphemeris>("gps_raw/geph", 50);
+    GPS_obs_.pub = nh_.advertise<inertial_sense::GNSSObservation>("gps/obs", 50);
+    GPS_obs_.pub = nh_.advertise<inertial_sense::GNSSEphemeris>("gps/eph", 50);
+    GPS_obs_.pub = nh_.advertise<inertial_sense::GlonassEphemeris>("gps/geph", 50);
     SET_CALLBACK(DID_GPS1_RAW, flash_config_.startupGPSDtMs, gps_raw_t, GPS_raw_callback);
     SET_CALLBACK(DID_GPS_BASE_RAW, flash_config_.startupGPSDtMs, gps_raw_t, GPS_raw_callback);
     SET_CALLBACK(DID_GPS2_RAW, flash_config_.startupGPSDtMs, gps_raw_t, GPS_raw_callback);
