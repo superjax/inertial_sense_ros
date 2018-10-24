@@ -124,7 +124,7 @@ Topics are enabled and disabled using parameters.  By default, only the `ins` to
 * `~GPS_ant_xyz` (vector(3), default: {0, 0, 0})
     - The NED translation vector between the INS frame and the GPS antenna (wrt INS frame)
 * `~GPS_ref_lla` (vector(3), default: {0, 0, 0})
-    - The Reference longitude, latitude and altitude for NED calculation in degrees, degrees and meters
+    - The Reference longitude, latitude and altitude for NED calculation in degrees, degrees and meters (use the `set_refLLA` service to update this automatically)
 * `~inclination` (float, default: 1.14878541071)
     - The inclination of earth's magnetic field (radians)
 * `~declination` (float, default: 0.20007290992)
@@ -165,4 +165,4 @@ Topics are enabled and disabled using parameters.  By default, only the `ins` to
 - `firmware_update` (inertial_sense/FirmwareUpdate)
   - Updates firmware to the `.hex` file supplied (use absolute filenames)
 * `set_refLLA` (std_srvs/Trigger)
-  - Takes the current estimated position and sets it as the `refLLA`.  Use this to set a base position after a survey, or to zero out the `ins` topic.
+  - Takes the current estimated position and sets it as the `refLLA`.  Use this to set a base position after a survey, or to zero out the `ins` topic.1
