@@ -83,13 +83,13 @@ InertialSenseROS::InertialSenseROS() :
   std::string RTK_server_IP, RTK_correction_type;
   int RTK_server_port;
   nh_private_.param<std::string>("RTK_server_IP", RTK_server_IP, "127.0.0.1");
-  nh_private_.param<int>("RTK_server_port", RTK_server_port, 12503);
+  nh_private_.param<int>("RTK_server_port", RTK_server_port, 7777);
   nh_private_.param<std::string>("RTK_correction_type", RTK_correction_type, "UBLOX");
-  std::string RTK_connection =  RTK_correction_type + ":" + RTK_server_IP + ":" + std::to_string(RTK_server_port);
   ROS_ERROR_COND(RTK_rover && RTK_base, "unable to configure uINS to be both RTK rover and base - default to rover");
 
   if (RTK_rover)
   {
+    std::string RTK_connection =  RTK_correction_type + ":" + RTK_server_IP + ":" + std::to_string(RTK_server_port);
     ROS_INFO("InertialSense: Configured as RTK Rover");
     RTK_state_ = RTK_ROVER;
     uint32_t RTKCfgBits = RTK_CFG_BITS_GPS1_RTK_ROVER;
@@ -109,6 +109,7 @@ InertialSenseROS::InertialSenseROS() :
 
   else if (RTK_base)
   {
+    std::string RTK_connection =  RTK_server_IP + ":" + std::to_string(RTK_server_port);
     RTK_.enabled = true;
     ROS_INFO("InertialSense: Configured as RTK Base");
     RTK_state_ = RTK_BASE;
@@ -131,8 +132,8 @@ InertialSenseROS::InertialSenseROS() :
   /////////////////////////////////////////////////////////
 
   uint32_t rmcBits = RMC_BITS_GPS1_POS | RMC_BITS_GPS1_VEL | RMC_BITS_STROBE_IN_TIME;
-  SET_CALLBACK(DID_GPS1_POS, flash_config_.startupGPSDtMs, gps_pos_t, GPS_Pos_callback); // we always need GPS for Fix status
-  SET_CALLBACK(DID_GPS1_VEL, flash_config_.startupGPSDtMs, gps_vel_t, GPS_Vel_callback); // we always need GPS for Fix status
+  SET_CALLBACK(DID_GPS1_POS, flash_config_.startupGPSDtMs, gps_pos_t, GPS_pos_callback); // we always need GPS for Fix status
+  SET_CALLBACK(DID_GPS1_VEL, flash_config_.startupGPSDtMs, gps_vel_t, GPS_vel_callback); // we always need GPS for Fix status
   SET_CALLBACK(DID_STROBE_IN_TIME, 100, strobe_in_time_t, strobe_in_time_callback); // we always want the strobe
   nh_private_.param<bool>("stream_INS", INS_.enabled, true);
   if (INS_.enabled)
@@ -159,8 +160,18 @@ InertialSenseROS::InertialSenseROS() :
   // Set up the GPS ROS stream - we always need GPS information for time sync, just don't always need to publish it
   nh_private_.param<bool>("stream_GPS", GPS_.enabled, false);
   if (GPS_.enabled)
-  {
     GPS_.pub = nh_.advertise<inertial_sense::GPS>("gps", 1);
+
+  nh_private_.param<bool>("stream_GPS_raw", GPS_obs_.enabled, false);
+  nh_private_.param<bool>("stream_GPS_raw", GPS_eph_.enabled, false);
+  if (GPS_obs_.enabled)
+  {
+    GPS_obs_.pub = nh_.advertise<inertial_sense::GNSSObservation>("gps_raw/obs", 50);
+    GPS_obs_.pub = nh_.advertise<inertial_sense::GNSSEphemeris>("gps_raw/eph", 50);
+    GPS_obs_.pub = nh_.advertise<inertial_sense::GlonassEphemeris>("gps_raw/geph", 50);
+    SET_CALLBACK(DID_GPS1_RAW, flash_config_.startupGPSDtMs, gps_raw_t, GPS_raw_callback);
+    SET_CALLBACK(DID_GPS_BASE_RAW, flash_config_.startupGPSDtMs, gps_raw_t, GPS_raw_callback);
+    SET_CALLBACK(DID_GPS2_RAW, flash_config_.startupGPSDtMs, gps_raw_t, GPS_raw_callback);
   }
 
   // Set up the GPS info ROS stream
@@ -168,7 +179,7 @@ InertialSenseROS::InertialSenseROS() :
   if (GPS_info_.enabled)
   {
     GPS_info_.pub = nh_.advertise<inertial_sense::GPSInfo>("gps/info", 1);
-    SET_CALLBACK(DID_GPS1_SAT, flash_config_.startupGPSDtMs, gps_sat_t, GPS_Info_callback);
+    SET_CALLBACK(DID_GPS1_SAT, flash_config_.startupGPSDtMs, gps_sat_t, GPS_info_callback);
     rmcBits |= RMC_BITS_GPS1_SAT;
   }
 
@@ -339,7 +350,7 @@ void InertialSenseROS::IMU_callback(const dual_imu_t* const msg)
 }
 
 
-void InertialSenseROS::GPS_Pos_callback(const gps_pos_t * const msg)
+void InertialSenseROS::GPS_pos_callback(const gps_pos_t * const msg)
 {
   GPS_week_ = msg->week;
   GPS_towOffset_ = msg->towOffset;
@@ -364,7 +375,7 @@ void InertialSenseROS::GPS_Pos_callback(const gps_pos_t * const msg)
   }
 }
 
-void InertialSenseROS::GPS_Vel_callback(const gps_vel_t * const msg)
+void InertialSenseROS::GPS_vel_callback(const gps_vel_t * const msg)
 {
 	if (GPS_.enabled)
 	{
@@ -402,7 +413,7 @@ void InertialSenseROS::strobe_in_time_callback(const strobe_in_time_t * const ms
 }
 
 
-void InertialSenseROS::GPS_Info_callback(const gps_sat_t* const msg)
+void InertialSenseROS::GPS_info_callback(const gps_sat_t* const msg)
 {
   gps_info_msg.header.stamp =ros_time_from_tow(msg->timeOfWeekMs/1e3);
   gps_info_msg.header.frame_id = frame_id_;
@@ -496,7 +507,120 @@ void InertialSenseROS::RTK_Rel_callback(const gps_rtk_rel_t* const msg)
     rtk_rel.heading_to_base = msg->headingToBase;
     RTK_.pub2.publish(rtk_rel);
   }
+}
 
+void InertialSenseROS::GPS_raw_callback(const gps_raw_t * const msg)
+{
+  switch(msg->dataType)
+  {
+  case raw_data_type_observation:
+    for (int i = 0; i < msg->obsCount; i++)
+      GPS_obs_callback((obsd_t*)&msg->data.obs[i]);
+    break;
+
+  case raw_data_type_ephemeris:
+    GPS_eph_callback((eph_t*)&msg->data.eph);
+    break;
+
+  case raw_data_type_glonass_ephemeris:
+    GPS_geph_callback((geph_t*)&msg->data.gloEph);
+    break;
+
+  default:
+    break;
+  }
+}
+
+void InertialSenseROS::GPS_obs_callback(const obsd_t * const msg)
+{
+  inertial_sense::GNSSObservation obs;
+  obs.time.time = msg->time.time;
+  obs.time.sec = msg->time.sec;
+  obs.sat = msg->sat;
+  obs.rcv = msg->rcv;
+  obs.SNR = msg->SNR[0];
+  obs.LLI = msg->LLI[0];
+  obs.code = msg->code[0];
+  obs.qualL = msg->qualL[0];
+  obs.qualP = msg->qualP[0];
+  obs.L = msg->L[0];
+  obs.P = msg->P[0];
+  obs.D = msg->D[0];
+  GPS_obs_.pub.publish(obs);
+}
+
+void InertialSenseROS::GPS_eph_callback(const eph_t * const msg)
+{
+  inertial_sense::GNSSEphemeris eph;
+  eph.sat = msg->sat;
+  eph.iode = msg->iode;
+  eph.iodc = msg->iodc;
+  eph.sva = msg->sva;
+  eph.svh = msg->svh;
+  eph.week = msg->week;
+  eph.code = msg->code;
+  eph.flag = msg->flag;
+  eph.toe.time = msg->toe.time;
+  eph.toc.time = msg->toc.time;
+  eph.ttr.time = msg->ttr.time;
+  eph.toe.sec = msg->toe.sec;
+  eph.toc.sec = msg->toc.sec;
+  eph.ttr.sec = msg->ttr.sec;
+  eph.A = msg->A;
+  eph.e = msg->e;
+  eph.i0 = msg->i0;
+  eph.OMG0 = msg->OMG0;
+  eph.omg = msg->omg;
+  eph.M0 = msg->M0;
+  eph.deln = msg->deln;
+  eph.OMGd = msg->OMGd;
+  eph.idot = msg->idot;
+  eph.crc = msg->crc;
+  eph.crs = msg->crs;
+  eph.cuc = msg->cuc;
+  eph.cus = msg->cus;
+  eph.cic = msg->cic;
+  eph.cis = msg->cis;
+  eph.toes = msg->toes;
+  eph.fit = msg->fit;
+  eph.f0 = msg->f0;
+  eph.f1 = msg->f1;
+  eph.f2 = msg->f2;
+  eph.tgd[0] = msg->tgd[0];
+  eph.tgd[1] = msg->tgd[1];
+  eph.tgd[2] = msg->tgd[2];
+  eph.tgd[3] = msg->tgd[3];
+  eph.Adot = msg->Adot;
+  eph.ndot = msg->ndot;
+  GPS_eph_.pub.publish(eph);
+}
+
+void InertialSenseROS::GPS_geph_callback(const geph_t * const msg)
+{
+  inertial_sense::GlonassEphemeris geph;
+  geph.sat = msg->sat;
+  geph.iode = msg->iode;
+  geph.frq = msg->frq;
+  geph.svh = msg->svh;
+  geph.sva = msg->sva;
+  geph.age = msg->age;
+  geph.toe.time = msg->toe.time;
+  geph.tof.time = msg->tof.time;
+  geph.toe.sec = msg->toe.sec;
+  geph.tof.sec = msg->tof.sec;
+  geph.pos[0] = msg->pos[0];
+  geph.pos[1] = msg->pos[1];
+  geph.pos[2] = msg->pos[2];
+  geph.vel[0] = msg->vel[0];
+  geph.vel[1] = msg->vel[1];
+  geph.vel[2] = msg->vel[2];
+  geph.acc[0] = msg->acc[0];
+  geph.acc[1] = msg->acc[1];
+  geph.acc[2] = msg->acc[2];
+  geph.taun = msg->taun;
+  geph.gamn = msg->gamn;
+  geph.dtaun = msg->dtaun;
+  GPS_eph_.pub2.publish(geph);
 }
 
 bool InertialSenseROS::set_current_position_as_refLLA(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res)

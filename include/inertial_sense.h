@@ -19,6 +19,9 @@
 #include "inertial_sense/FirmwareUpdate.h"
 #include "inertial_sense/RTKRel.h"
 #include "inertial_sense/RTKInfo.h"
+#include "inertial_sense/GNSSEphemeris.h"
+#include "inertial_sense/GlonassEphemeris.h"
+#include "inertial_sense/GNSSObservation.h"
 #include "nav_msgs/Odometry.h"
 #include "std_srvs/Trigger.h"
 #include "std_msgs/Header.h"
@@ -79,11 +82,17 @@ private:
   void IMU_callback(const dual_imu_t* const msg);
 
   ros_stream_t GPS_;
-  void GPS_Pos_callback(const gps_pos_t* const msg);
-  void GPS_Vel_callback(const gps_vel_t* const msg);
+  ros_stream_t GPS_obs_;
+  ros_stream_t GPS_eph_;
+  void GPS_pos_callback(const gps_pos_t* const msg);
+  void GPS_vel_callback(const gps_vel_t* const msg);
+  void GPS_raw_callback(const gps_raw_t* const msg);
+  void GPS_obs_callback(const obsd_t* const msg);
+  void GPS_eph_callback(const eph_t* const msg);
+  void GPS_geph_callback(const geph_t* const msg);
 
   ros_stream_t GPS_info_;
-  void GPS_Info_callback(const gps_sat_t* const msg);
+  void GPS_info_callback(const gps_sat_t* const msg);
 
   ros_stream_t mag_;
   void mag_callback(const magnetometer_t* const msg);

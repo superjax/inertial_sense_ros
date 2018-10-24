@@ -4,6 +4,7 @@ project(inertial_sense)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
+  std_msgs
   sensor_msgs
   geometry_msgs
   message_generation
@@ -15,12 +16,16 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11 -fms-extensions -Wl,--no-as
 
 add_message_files(
   FILES
+  GTime.msg
   SatInfo.msg
   GPS.msg
   GPSInfo.msg
   PreIntIMU.msg
   RTKInfo.msg
   RTKRel.msg
+  GlonassEphemeris.msg
+  GNSSEphemeris.msg
+  GNSSObservation.msg
 )
 
 add_service_files(
