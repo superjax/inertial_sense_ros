@@ -4,10 +4,10 @@ A ROS wrapper for the InertialSense uINS2 GPS-INS sensor
 
 ## NOTICE:
 
-To use this node, you will likely need to update firmware on your uINS [release page](https://github.com/inertialsense/InertialSenseSDK/releases). Download the appropriate `.hex` file and use the `firmware_update` ROS service to update the firmware
+To use this node, you will need to update firmware on your uINS to _at least_  v1.7.0 [release page](https://github.com/inertialsense/InertialSenseSDK/releases). Download the appropriate `.hex` file and use the `firmware_update` ROS service to update the firmware
 
 ``` 
-rosservice call /firmware_update /home/superjax/Download/IS_uINS-3_v1.6.6.0_b2781_2018-06-29_175015.hex
+rosservice call /firmware_update /home/superjax/Download/IS_uINS-3_v1.7.0<...>.hex
 ```
 
 ## Installation
