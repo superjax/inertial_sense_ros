@@ -1,6 +1,6 @@
 # inertial_sense
 
-A ROS wrapper for the InertialSense uINS2 GPS-INS sensor
+A ROS wrapper for the InertialSense uINS GPS-INS sensor
 
 ## NOTICE:
 
