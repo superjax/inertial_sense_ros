@@ -1,6 +1,7 @@
 # inertial_sense
 
-A ROS wrapper for the InertialSense uINS2 GPS-INS sensor
+A ROS wrapper for the InertialSense uINS2 RTK-GPS-INS sensor.
+
 
 ## NOTICE:
 
@@ -40,6 +41,14 @@ rosrun inertial_sense inertial_sense_node
 ```
 
 For setting parameters and topic remappings from a launch file, refer to the [Roslaunch for Larger Projects](http://wiki.ros.org/roslaunch/Tutorials/Roslaunch%20tips%20for%20larger%20projects) page, or the sample `launch/test.launch` file in this repository.
+
+## RTK
+RTK (Realtime Kinematic) GPS requires two gps receivers, a _base_ and a _rover_.  The GPS observations from the base GPS are sent to the rover and the rover is able to calculate a much more accurate (+/- 3cm) relative position to the base.  This requires a surveyed base position and a relatively high-bandwidth connection to the rover.  The RTK functionality in this node is performed by setting parameters shown below.
+
+It is important that the base position be accurate.  There are two primary methods for getting a surveyed base position 
+  1. Find the location of the base on Google Maps (quick and easy, not as accurate)
+  2. Put the base into rover mode with a 3rd-party base station such as a NTRIP caster.  Once the base has RTK fix, the absolute position of the base is accurate to within 3 cm.  Averaging this position over time is usually the most accurate way to get a base position, but takes more effort.
+Once the base position has been identified, set the `refLLA` of the base uINS to your surveyed position to indicate a surveyed base position.
 
 ## Time Stamps
 
