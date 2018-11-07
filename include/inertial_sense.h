@@ -17,9 +17,15 @@
 #include "inertial_sense/GPSInfo.h"
 #include "inertial_sense/PreIntIMU.h"
 #include "inertial_sense/FirmwareUpdate.h"
+#include "inertial_sense/RTKRel.h"
+#include "inertial_sense/RTKInfo.h"
+#include "inertial_sense/GNSSEphemeris.h"
+#include "inertial_sense/GlonassEphemeris.h"
+#include "inertial_sense/GNSSObservation.h"
 #include "nav_msgs/Odometry.h"
 #include "std_srvs/Trigger.h"
 #include "std_msgs/Header.h"
+#include "geometry_msgs/Vector3Stamped.h"
 
 # define GPS_UNIX_OFFSET 315964800 // GPS time started on 6/1/1980 while UNIX time started 1/1/1970 this is the difference between those in seconds
 # define LEAP_SECONDS 18 // GPS time does not have leap seconds, UNIX does (as of 1/1/2017 - next one is probably in 2020 sometime unless there is some crazy earthquake or nuclear blast)
@@ -76,10 +82,17 @@ private:
   void IMU_callback(const dual_imu_t* const msg);
 
   ros_stream_t GPS_;
-  void GPS_callback(const gps_nav_t* const msg);
+  ros_stream_t GPS_obs_;
+  ros_stream_t GPS_eph_;
+  void GPS_pos_callback(const gps_pos_t* const msg);
+  void GPS_vel_callback(const gps_vel_t* const msg);
+  void GPS_raw_callback(const gps_raw_t* const msg);
+  void GPS_obs_callback(const obsd_t* const msg);
+  void GPS_eph_callback(const eph_t* const msg);
+  void GPS_geph_callback(const geph_t* const msg);
 
   ros_stream_t GPS_info_;
-  void GPS_Info_callback(const gps_sat_t* const msg);
+  void GPS_info_callback(const gps_sat_t* const msg);
 
   ros_stream_t mag_;
   void mag_callback(const magnetometer_t* const msg);
@@ -98,10 +111,25 @@ private:
   ros::ServiceServer mag_cal_srv_;
   ros::ServiceServer multi_mag_cal_srv_;
   ros::ServiceServer firmware_update_srv_;
+  ros::ServiceServer refLLA_set_srv_;
+  bool set_current_position_as_refLLA(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response & res);
   bool perform_mag_cal_srv_callback(std_srvs::Trigger::Request & req, std_srvs::Trigger::Response & res);
   bool perform_multi_mag_cal_srv_callback(std_srvs::Trigger::Request & req, std_srvs::Trigger::Response & res);
   bool update_firmware_srv_callback(inertial_sense::FirmwareUpdate::Request & req, inertial_sense::FirmwareUpdate::Response & res);
   
+  void publishGPS();
+
+  typedef enum
+  {
+    RTK_NONE,
+    RTK_ROVER,
+    RTK_BASE
+  } rtk_state_t;
+  rtk_state_t RTK_state_ = RTK_NONE;
+  ros_stream_t RTK_;
+  void RTK_Misc_callback(const gps_rtk_misc_t* const msg);
+  void RTK_Rel_callback(const gps_rtk_rel_t* const msg);
+
   
   /**
    * @brief ros_time_from_week_and_tow
@@ -134,9 +162,11 @@ private:
   bool got_first_message_ = false; // Flag to capture first uINS start time guess
 
   // Data to hold on to in between callbacks
+  double lla_[3];
   sensor_msgs::Imu imu1_msg, imu2_msg;
   nav_msgs::Odometry odom_msg;
   inertial_sense::GPS gps_msg;
+  geometry_msgs::Vector3Stamped gps_velEcef;
   inertial_sense::GPSInfo gps_info_msg;
 
   ros::NodeHandle nh_;

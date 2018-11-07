@@ -1,13 +1,14 @@
 # inertial_sense
 
-A ROS wrapper for the InertialSense uINS GPS-INS sensor
+
+A ROS wrapper for the InertialSense uINS2 RTK-GPS-INS sensor.
 
 ## NOTICE:
 
-To use this node, you will likely need to update firmware on your uINS [release page](https://github.com/inertialsense/InertialSenseSDK/releases). Download the appropriate `.hex` file and use the `firmware_update` ROS service to update the firmware
+To use this node, you will need to update firmware on your uINS to _at least_  v1.7.0 [release page](https://github.com/inertialsense/InertialSenseSDK/releases). Download the appropriate `.hex` file and use the `firmware_update` ROS service to update the firmware
 
 ``` 
-rosservice call /firmware_update /home/superjax/Download/IS_uINS-3_v1.6.6.0_b2781_2018-06-29_175015.hex
+rosservice call /firmware_update /home/superjax/Download/IS_uINS-3_v1.7.0<...>.hex
 ```
 
 ## Installation
@@ -41,6 +42,17 @@ rosrun inertial_sense inertial_sense_node
 
 For setting parameters and topic remappings from a launch file, refer to the [Roslaunch for Larger Projects](http://wiki.ros.org/roslaunch/Tutorials/Roslaunch%20tips%20for%20larger%20projects) page, or the sample `launch/test.launch` file in this repository.
 
+## RTK
+RTK (Realtime Kinematic) GPS requires two gps receivers, a _base_ and a _rover_.  The GPS observations from the base GPS are sent to the rover and the rover is able to calculate a much more accurate (+/- 3cm) relative position to the base.  This requires a surveyed base position and a relatively high-bandwidth connection to the rover.  The RTK functionality in this node is performed by setting parameters shown below.
+
+It is important that the base position be accurate.  There are two primary methods for getting a surveyed base position.
+
+  1. Find the location of the base on Google Maps (quick and easy, not as accurate)
+  2. Put the base into rover mode with a 3rd-party base station such as a NTRIP caster.  Once the base has RTK fix, the absolute position of the base is accurate to within 3 cm.  Averaging this position over time is usually the most accurate way to get a base position, but takes more effort.
+
+
+Once the base position has been identified, set the `refLLA` of the base uINS to your surveyed position to indicate a surveyed base position.
+
 ## Time Stamps
 
 If GPS is available, all header timestamps are calculated with respect to the GPS clock but are translated into UNIX time to be consistent with the other topics in a ROS network.  If GPS is unvailable, then a constant offset between uINS time and system time is estimated during operation  and is applied to IMU and INS message timestamps as they arrive.  There is often a small drift in these timestamps (on the order of a microsecond per second), due to variance in measurement streams and difference between uINS and system clocks, however this is more accurate than stamping the measurements with ROS time as they arrive.  
@@ -49,12 +61,12 @@ In an ideal setting, there should be no jump in timestamps when GPS is first acq
 
 ## Topics
 
-Topics are enabled and disabled using parameters.  By default, only the `ins/` topic is published to save processor time in serializing unecessary messages.
-- `ins/`(nav_msgs/Odometry)
+Topics are enabled and disabled using parameters.  By default, only the `ins` topic is published to save processor time in serializing unecessary messages.
+- `ins`(nav_msgs/Odometry)
     - full 12-DOF measurements from onboard estimator (pose portion is from inertial to body, twist portion is in body frame)
-- `imu/`(sensor_msgs/Imu)
+- `imu`(sensor_msgs/Imu)
     - Raw Imu measurements from IMU1 (NED frame)
-- `gps/`(inertial_sense/GPS)
+- `gps`(inertial_sense/GPS)
     - unfiltered GPS measurements from onboard GPS unit
 - `gps/info`(inertial_sense/GPSInfo)
     - sattelite information and carrier noise ratio array for each sattelite
@@ -64,6 +76,16 @@ Topics are enabled and disabled using parameters.  By default, only the `ins/` t
     - Raw barometer measurements in kPa
 - `preint_imu` (inertial_sense/DThetaVel)
     - preintegrated coning and sculling integrals of IMU measurements
+- `RTK/info` (inertial_sense/RTKInfo)
+    - information about RTK status
+- `RTK/rel` (inertial_sense/RTKRel)
+    * Relative measurement between RTK base and rover
+- `gps/obs` (inertial_sense/GNSSObservation)
+    * Raw satellite observation (psuedorange and carrier phase)
+- `gps/eph` (inertial_sense/GNSSEphemeris)
+    * Satellite Ephemeris for GPS and Galileo GNSS constellations
+- `gps/geph`
+    * Satellite Ephemeris for Glonass GNSS constellation
 
 ## Parameters
 
@@ -91,6 +113,20 @@ Topics are enabled and disabled using parameters.  By default, only the `ins/` t
    - Flag to stream GPS
 * `~stream_GPS_info`(bool, default: false)
    - Flag to stream GPS info messages
+- `stream_GPS_raw` (bool, default: false)
+   - Flag to stream GPS raw messages
+
+**RTK Configuration**
+* `~RTK_Rover` (bool, default: false)
+  - Enables RTK rover mode (requires base corrections from an RTK base)
+* `~RTK_base` (bool, default: false)
+  - Makes the connected uINS a RTK base station and enables the publishing of corrections
+* `~RTK_server_IP` (string, default: 172.0.0.1)
+  - If operating as base, attempts to create a TCP port on this IP for base corrections, if rover, connects to this IP for corrections.
+* `~RTK_server_port` (int, default: 7777)
+  - If operating as base, creates a TCP connection at this port for base corrections, if rover, connects to this port for corrections.
+* `~RTK_correction_type` (string, default: UBLOX)
+  - If operating with limited bandwidth, choose RTCM3 for a lower bandwidth, but less accurate base corrections,  rover and base must match
 
 **Sensor Configuration**
 * `~INS_rpy` (vector(3), default: {0, 0, 0})
@@ -100,7 +136,7 @@ Topics are enabled and disabled using parameters.  By default, only the `ins/` t
 * `~GPS_ant_xyz` (vector(3), default: {0, 0, 0})
     - The NED translation vector between the INS frame and the GPS antenna (wrt INS frame)
 * `~GPS_ref_lla` (vector(3), default: {0, 0, 0})
-    - The Reference longitude, latitude and altitude for NED calculation in degrees, degrees and meters
+    - The Reference longitude, latitude and altitude for NED calculation in degrees, degrees and meters (use the `set_refLLA` service to update this automatically)
 * `~inclination` (float, default: 1.14878541071)
     - The inclination of earth's magnetic field (radians)
 * `~declination` (float, default: 0.20007290992)
@@ -140,3 +176,5 @@ Topics are enabled and disabled using parameters.  By default, only the `ins/` t
   - Put INS into multi axis magnetometer calibration mode.  This is typically used if the uINS is not mounted to a vehicle, or a lightweight vehicle such as a drone.  Simply rotate the uINS around all axes until the light on the uINS turns blue [more info](http://docs.inertialsense.com/user-manual/Setup_Integration/magnetometer_calibration/)
 - `firmware_update` (inertial_sense/FirmwareUpdate)
   - Updates firmware to the `.hex` file supplied (use absolute filenames)
+* `set_refLLA` (std_srvs/Trigger)
+  - Takes the current estimated position and sets it as the `refLLA`.  Use this to set a base position after a survey, or to zero out the `ins` topic.1
