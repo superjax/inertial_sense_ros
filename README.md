@@ -1,7 +1,7 @@
 # inertial_sense
 
-A ROS wrapper for the InertialSense uINS2 RTK-GPS-INS sensor.
 
+A ROS wrapper for the InertialSense uINS2 RTK-GPS-INS sensor.
 
 ## NOTICE:
 
