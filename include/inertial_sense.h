@@ -76,7 +76,7 @@ private:
   ros_stream_t INS_;
   void INS1_callback(const ins_1_t* const msg);
   void INS2_callback(const ins_2_t* const msg);
-  void INS_variance_callback(const inl2_variance_t* const msg);
+//  void INS_variance_callback(const inl2_variance_t* const msg);
 
   ros_stream_t IMU_;
   void IMU_callback(const dual_imu_t* const msg);

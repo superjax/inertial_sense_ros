@@ -5,7 +5,12 @@
 #include <tf/tf.h>
 #include <ros/console.h>
 
-#define SET_CALLBACK(DID, __rate_MS, __type, __cb_fun) IS_.BroadcastBinaryData(DID, (__rate_MS), [this](InertialSense*i, p_data_t* data, int pHandle){this->__cb_fun(reinterpret_cast<__type*>(data->buf));});
+#define SET_CALLBACK(DID, __rate_MS, __type, __cb_fun) \
+    IS_.BroadcastBinaryData(DID, (__rate_MS), \
+    [this](InertialSense*i, p_data_t* data, int pHandle)\
+    { \
+        this->__cb_fun(reinterpret_cast<__type*>(data->buf));\
+    });
 
 
 InertialSenseROS::InertialSenseROS() :
@@ -142,7 +147,7 @@ InertialSenseROS::InertialSenseROS() :
     SET_CALLBACK(DID_INS_1, nav_dt_ms, ins_1_t, INS1_callback);
     SET_CALLBACK(DID_INS_2, nav_dt_ms, ins_2_t, INS2_callback);
     SET_CALLBACK(DID_DUAL_IMU, nav_dt_ms, dual_imu_t, IMU_callback);
-    SET_CALLBACK(DID_INL2_VARIANCE, nav_dt_ms, inl2_variance_t, INS_variance_callback);
+//    SET_CALLBACK(DID_INL2_VARIANCE, nav_dt_ms, inl2_variance_t, INS_variance_callback);
     rmcBits |= RMC_BITS_INS1 | RMC_BITS_INS2 | RMC_BITS_DUAL_IMU;
   }
 
@@ -266,35 +271,35 @@ void InertialSenseROS::INS1_callback(const ins_1_t * const msg)
   odom_msg.pose.pose.position.z = msg->ned[2];
 }
 
-void InertialSenseROS::INS_variance_callback(const inl2_variance_t * const msg)
-{
-  // We have to convert NED velocity covariance into body-fixed
-  tf::Matrix3x3 cov_vel_NED;
-  cov_vel_NED.setValue(msg->PvelNED[0], 0, 0, 0, msg->PvelNED[1], 0, 0, 0, msg->PvelNED[2]);
-  tf::Quaternion att;
-  tf::quaternionMsgToTF(odom_msg.pose.pose.orientation, att);
-  tf::Matrix3x3 R_NED_B(att);
-  tf::Matrix3x3 cov_vel_B = R_NED_B.transposeTimes(cov_vel_NED * R_NED_B);
+//void InertialSenseROS::INS_variance_callback(const inl2_variance_t * const msg)
+//{
+//  // We have to convert NED velocity covariance into body-fixed
+//  tf::Matrix3x3 cov_vel_NED;
+//  cov_vel_NED.setValue(msg->PvelNED[0], 0, 0, 0, msg->PvelNED[1], 0, 0, 0, msg->PvelNED[2]);
+//  tf::Quaternion att;
+//  tf::quaternionMsgToTF(odom_msg.pose.pose.orientation, att);
+//  tf::Matrix3x3 R_NED_B(att);
+//  tf::Matrix3x3 cov_vel_B = R_NED_B.transposeTimes(cov_vel_NED * R_NED_B);
 
-  // Populate Covariance Matrix
-  for (int i = 0; i < 3; i++)
-  {
-    // Position and velocity covariance is only valid if in NAV mode (with GPS)
-    if (insStatus_ & INS_STATUS_NAV_MODE)
-    {
-      odom_msg.pose.covariance[7*i] = msg->PxyzNED[i];
-      for (int j = 0; j < 3; j++)
-        odom_msg.twist.covariance[6*i+j] = cov_vel_B[i][j];
-    }
-    else
-    {
-      odom_msg.pose.covariance[7*i] = 0;
-      odom_msg.twist.covariance[7*i] = 0;
-    }
-    odom_msg.pose.covariance[7*(i+3)] = msg->PattNED[i];
-    odom_msg.twist.covariance[7*(i+3)] = msg->PWBias[i];
-  }
-}
+//  // Populate Covariance Matrix
+//  for (int i = 0; i < 3; i++)
+//  {
+//    // Position and velocity covariance is only valid if in NAV mode (with GPS)
+//    if (insStatus_ & INS_STATUS_NAV_MODE)
+//    {
+//      odom_msg.pose.covariance[7*i] = msg->PxyzNED[i];
+//      for (int j = 0; j < 3; j++)
+//        odom_msg.twist.covariance[6*i+j] = cov_vel_B[i][j];
+//    }
+//    else
+//    {
+//      odom_msg.pose.covariance[7*i] = 0;
+//      odom_msg.twist.covariance[7*i] = 0;
+//    }
+//    odom_msg.pose.covariance[7*(i+3)] = msg->PattNED[i];
+//    odom_msg.twist.covariance[7*(i+3)] = msg->PWBias[i];
+//  }
+//}
 
 
 void InertialSenseROS::INS2_callback(const ins_2_t * const msg)
