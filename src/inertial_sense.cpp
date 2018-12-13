@@ -167,11 +167,12 @@ InertialSenseROS::InertialSenseROS() :
   if (GPS_obs_.enabled)
   {
     GPS_obs_.pub = nh_.advertise<inertial_sense::GNSSObservation>("gps/obs", 50);
-    GPS_obs_.pub = nh_.advertise<inertial_sense::GNSSEphemeris>("gps/eph", 50);
-    GPS_obs_.pub = nh_.advertise<inertial_sense::GlonassEphemeris>("gps/geph", 50);
+    GPS_eph_.pub = nh_.advertise<inertial_sense::GNSSEphemeris>("gps/eph", 50);
+    GPS_eph_.pub2 = nh_.advertise<inertial_sense::GlonassEphemeris>("gps/geph", 50);
     SET_CALLBACK(DID_GPS1_RAW, flash_config_.startupGPSDtMs, gps_raw_t, GPS_raw_callback);
     SET_CALLBACK(DID_GPS_BASE_RAW, flash_config_.startupGPSDtMs, gps_raw_t, GPS_raw_callback);
     SET_CALLBACK(DID_GPS2_RAW, flash_config_.startupGPSDtMs, gps_raw_t, GPS_raw_callback);
+    rmcBits |= RMC_BITS_GPS1_RAW | RMC_BITS_GPS2_RAW | RMC_BITS_GPS_BASE_RAW;
   }
 
   // Set up the GPS info ROS stream
