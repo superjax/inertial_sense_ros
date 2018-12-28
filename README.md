@@ -1,7 +1,7 @@
 # inertial_sense
 
 
-A ROS wrapper for the InertialSense uINS3 RTK-GPS-INS sensor.
+A ROS wrapper for the InertialSense uINS3 RTK-GPS-INS and Dual GPS (GPS Compassing) sensor.
 
 ## NOTICE:
 
@@ -43,7 +43,7 @@ rosrun inertial_sense inertial_sense_node
 For setting parameters and topic remappings from a launch file, refer to the [Roslaunch for Larger Projects](http://wiki.ros.org/roslaunch/Tutorials/Roslaunch%20tips%20for%20larger%20projects) page, or the sample `launch/test.launch` file in this repository.
 
 ## RTK
-RTK (Realtime Kinematic) GPS requires two gps receivers, a _base_ and a _rover_.  The GPS observations from the base GPS are sent to the rover and the rover is able to calculate a much more accurate (+/- 3cm) relative position to the base.  This requires a surveyed base position and a relatively high-bandwidth connection to the rover.  The RTK functionality in this node is performed by setting parameters shown below.
+RTK (Realtime Kinematic) GPS requires two gps receivers, a _base_ and a _rover_.  The GPS observations from the base GPS are sent to the rover and the rover is able to calculate a much more accurate (+/- 3cm) relative position to the base.  This requires a surveyed base position and a relatively high-bandwidth connection to the rover.  If using a uINS with two GPS receviers, GPS 1 is used for base corrections.  The RTK functionality in this node is performed by setting parameters shown below.
 
 It is important that the base position be accurate.  There are two primary methods for getting a surveyed base position.
 
@@ -52,6 +52,11 @@ It is important that the base position be accurate.  There are two primary metho
 
 
 Once the base position has been identified, set the `refLLA` of the base uINS to your surveyed position to indicate a surveyed base position.
+
+## Dual GNSS (GPS Compassing)
+GPS Compassing is supported on units with two GPS receivers.  It also requires a very precise measurement of the locations of both GPS antennas relative to the uINS (+/- 1cm).  If you want to use the Dual GNSS mode, you must set the `dual_GNSS` parameter, and specify both the `GPS_ant1_xyz` and `GPS_ant2_xyz` vector parameters.
+
+Dual GNSS uses the onboard RTK engine, so it is currently impossible for a uINS to be configured as both an RTK rover and for dual GNSS compassing simultaneously.  It is possible to provide base corrections while also acting in dual GNSS mode.
 
 ## Time Stamps
 
@@ -121,6 +126,8 @@ Topics are enabled and disabled using parameters.  By default, only the `ins` to
   - Enables RTK rover mode (requires base corrections from an RTK base)
 * `~RTK_base` (bool, default: false)
   - Makes the connected uINS a RTK base station and enables the publishing of corrections
+* `~dual_GNSS` (bool, default: false)
+  - Uses both GPS antennas in a dual-GNSS configuration
 * `~RTK_server_IP` (string, default: 172.0.0.1)
   - If operating as base, attempts to create a TCP port on this IP for base corrections, if rover, connects to this IP for corrections.
 * `~RTK_server_port` (int, default: 7777)
@@ -133,8 +140,10 @@ Topics are enabled and disabled using parameters.  By default, only the `ins` to
     - The roll, pitch, yaw rotation from the INS frame to the output frame
 * `~INS_xyz` (vector(3), default: {0, 0, 0})
     - The NED translation vector between the INS frame and the output frame (wrt output frame)
-* `~GPS_ant_xyz` (vector(3), default: {0, 0, 0})
-    - The NED translation vector between the INS frame and the GPS antenna (wrt INS frame)
+* `~GPS_ant1_xyz` (vector(3), default: {0, 0, 0})
+    - The NED translation vector between the INS frame and the GPS 1 antenna (wrt INS frame)
+* `~GPS_ant2_xyz` (vector(3), default: {0, 0, 0})
+    - The NED translation vector between the INS frame and the GPS 2 antenna (wrt INS frame)
 * `~GPS_ref_lla` (vector(3), default: {0, 0, 0})
     - The Reference longitude, latitude and altitude for NED calculation in degrees, degrees and meters (use the `set_refLLA` service to update this automatically)
 * `~inclination` (float, default: 1.14878541071)

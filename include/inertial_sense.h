@@ -123,7 +123,8 @@ private:
   {
     RTK_NONE,
     RTK_ROVER,
-    RTK_BASE
+    RTK_BASE,
+    DUAL_GNSS
   } rtk_state_t;
   rtk_state_t RTK_state_ = RTK_NONE;
   ros_stream_t RTK_;

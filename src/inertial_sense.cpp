@@ -82,23 +82,39 @@ InertialSenseROS::InertialSenseROS() :
   /////////////////////////////////////////////////////////
   /// RTK Configuration
   /////////////////////////////////////////////////////////
-  bool RTK_rover, RTK_base;
+  bool RTK_rover, RTK_base, dual_GNSS;
   nh_private_.param<bool>("RTK_rover", RTK_rover, false);
   nh_private_.param<bool>("RTK_base", RTK_base, false);
+  nh_private_.param<bool>("dual_GNSS", dual_GNSS, false);
   std::string RTK_server_IP, RTK_correction_type;
   int RTK_server_port;
   nh_private_.param<std::string>("RTK_server_IP", RTK_server_IP, "127.0.0.1");
   nh_private_.param<int>("RTK_server_port", RTK_server_port, 7777);
   nh_private_.param<std::string>("RTK_correction_type", RTK_correction_type, "UBLOX");
   ROS_ERROR_COND(RTK_rover && RTK_base, "unable to configure uINS to be both RTK rover and base - default to rover");
+  ROS_ERROR_COND(RTK_rover && dual_GNSS, "unable to configure uINS to be both RTK rover as dual GNSS - default to dual GNSS");
+  
+  uint32_t RTKCfgBits = 0;
+  if (dual_GNSS)
+  {
+    RTK_rover = false;
+    ROS_INFO("InertialSense: Configured as dual GNSS (compassing)");
+    RTK_state_ = DUAL_GNSS;
+    RTKCfgBits |= RTK_CFG_BITS_COMPASSING;
+    SET_CALLBACK(DID_GPS1_RTK_MISC, nav_dt_ms, gps_rtk_misc_t, RTK_Misc_callback);
+    SET_CALLBACK(DID_GPS1_RTK_REL, nav_dt_ms, gps_rtk_rel_t, RTK_Rel_callback);
+    RTK_.enabled = true;
+    RTK_.pub = nh_.advertise<inertial_sense::RTKInfo>("RTK/info", 10);
+    RTK_.pub2 = nh_.advertise<inertial_sense::RTKRel>("RTK/rel", 10);
+  }
 
   if (RTK_rover)
   {
+    RTK_base = false;
     std::string RTK_connection =  RTK_correction_type + ":" + RTK_server_IP + ":" + std::to_string(RTK_server_port);
     ROS_INFO("InertialSense: Configured as RTK Rover");
     RTK_state_ = RTK_ROVER;
-    uint32_t RTKCfgBits = RTK_CFG_BITS_GPS1_RTK_ROVER;
-    IS_.SendData(DID_FLASH_CONFIG, reinterpret_cast<uint8_t*>(&RTKCfgBits), sizeof(RTKCfgBits), offsetof(nvm_flash_cfg_t, RTKCfgBits));
+    RTKCfgBits |= RTK_CFG_BITS_GPS1_RTK_ROVER;
 
     if (IS_.OpenServerConnection(RTK_connection))
       ROS_INFO_STREAM("Successfully connected to " << RTK_connection << " RTK server");
@@ -118,8 +134,7 @@ InertialSenseROS::InertialSenseROS() :
     RTK_.enabled = true;
     ROS_INFO("InertialSense: Configured as RTK Base");
     RTK_state_ = RTK_BASE;
-    uint32_t RTKCfgBits = RTK_CFG_BITS_BASE_OUTPUT_GPS1_UBLOX_SER0;
-    IS_.SendData(DID_FLASH_CONFIG, reinterpret_cast<uint8_t*>(&RTKCfgBits), sizeof(RTKCfgBits), offsetof(nvm_flash_cfg_t, RTKCfgBits));
+    RTKCfgBits |= RTK_CFG_BITS_BASE_OUTPUT_GPS1_UBLOX_SER0;
 
     if (IS_.CreateHost(RTK_connection))
     {
@@ -130,6 +145,7 @@ InertialSenseROS::InertialSenseROS() :
     else
       ROS_ERROR_STREAM("Failed to create base server at " << RTK_connection);
   }
+  IS_.SendData(DID_FLASH_CONFIG, reinterpret_cast<uint8_t*>(&RTKCfgBits), sizeof(RTKCfgBits), offsetof(nvm_flash_cfg_t, RTKCfgBits));
 
 
   /////////////////////////////////////////////////////////
