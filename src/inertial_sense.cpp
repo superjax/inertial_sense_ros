@@ -9,15 +9,17 @@
     IS_.BroadcastBinaryData(DID, (__rate_MS), \
     [this](InertialSense*i, p_data_t* data, int pHandle)\
     { \
+        /*ROS_INFO("Got message %d", DID); */\
         this->__cb_fun(reinterpret_cast<__type*>(data->buf));\
     });
+
 
 
 InertialSenseROS::InertialSenseROS() :
   nh_(), nh_private_("~"), initialized_(false)
 {
   nh_private_.param<std::string>("port", port_, "/dev/ttyUSB0");
-  nh_private_.param<int>("baudrate", baudrate_, 3000000);
+  nh_private_.param<int>("baudrate", baudrate_, 921600);
   nh_private_.param<std::string>("frame_id", frame_id_, "body");
 
   /// Connect to the uINS
@@ -77,7 +79,7 @@ InertialSenseROS::InertialSenseROS() :
   set_flash_config<float>("inclination", offsetof(nvm_flash_cfg_t, magInclination), 1.14878541071f);
   set_flash_config<float>("declination", offsetof(nvm_flash_cfg_t, magDeclination), 0.20007290992f);
   set_flash_config<int>("dynamic_model", offsetof(nvm_flash_cfg_t, insDynModel), 8);
-  set_flash_config<int>("ser1_baud_rate", offsetof(nvm_flash_cfg_t, ser1BaudRate), 115200);
+  set_flash_config<int>("ser1_baud_rate", offsetof(nvm_flash_cfg_t, ser1BaudRate), 921600);
 
   /////////////////////////////////////////////////////////
   /// RTK Configuration
