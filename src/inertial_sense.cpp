@@ -50,14 +50,21 @@ InertialSenseROS::InertialSenseROS() :
       uint32_t data = nav_dt_ms;
       IS_.SendData(DID_FLASH_CONFIG, (uint8_t*)(&data), sizeof(uint32_t), offsetof(nvm_flash_cfg_t, startupNavDtMs));
       ROS_INFO("navigation rate change from %dms to %dms, resetting uINS to make change", flash_config_.startupNavDtMs, nav_dt_ms);
+      sleep(3);
       reset_device();
-      
+
       // Re-request flash config to confirm change
-      flash_config_ = IS_.GetFlashConfig();
-      if (flash_config_.startupNavDtMs != nav_dt_ms)
-        ROS_ERROR("inertialsense: unable to change navigation rate from %dms to %dms", flash_config_.startupNavDtMs, nav_dt_ms);
-      else
-        ROS_INFO("Set navigation rate to %dms", flash_config_.startupNavDtMs);
+//      IS_.BroadcastBinaryData(DID_FLASH_CONFIG, 0, 0);
+//      for (int i = 0; i < 1000; i++)
+//      {
+//        IS_.Update();
+//        usleep(1000);
+//      }
+//      flash_config_ = IS_.GetFlashConfig();
+//      if (flash_config_.startupNavDtMs != nav_dt_ms)
+//        ROS_ERROR("inertialsense: unable to change navigation rate from %dms to %dms", flash_config_.startupNavDtMs, nav_dt_ms);
+//      else
+//        ROS_INFO("Set navigation rate to %dms", flash_config_.startupNavDtMs);
     }
   }
   
@@ -655,7 +662,7 @@ void InertialSenseROS::reset_device()
   reset_command.system = 99;
   reset_command.invSystem = ~reset_command.system;
   IS_.SendData(DID_CONFIG, reinterpret_cast<uint8_t*>(&reset_command), sizeof(config_t), 0);
-  sleep(3);
+  sleep(1);
 }
 
 bool InertialSenseROS::update_firmware_srv_callback(inertial_sense::FirmwareUpdate::Request &req, inertial_sense::FirmwareUpdate::Response &res)
