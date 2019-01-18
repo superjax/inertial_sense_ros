@@ -5,8 +5,8 @@
 #include <tf/tf.h>
 #include <ros/console.h>
 
-#define SET_CALLBACK(DID, __rate_MS, __type, __cb_fun) \
-    IS_.BroadcastBinaryData(DID, (__rate_MS), \
+#define SET_CALLBACK(DID, __type, __cb_fun) \
+    IS_.BroadcastBinaryData(DID, 1, \
     [this](InertialSense*i, p_data_t* data, int pHandle)\
     { \
         this->__cb_fun(reinterpret_cast<__type*>(data->buf));\
@@ -17,7 +17,7 @@ InertialSenseROS::InertialSenseROS() :
   nh_(), nh_private_("~"), initialized_(false)
 {
   nh_private_.param<std::string>("port", port_, "/dev/ttyUSB0");
-  nh_private_.param<int>("baudrate", baudrate_, 3000000);
+  nh_private_.param<int>("baudrate", baudrate_, 921600);
   nh_private_.param<std::string>("frame_id", frame_id_, "body");
 
   /// Connect to the uINS
@@ -38,7 +38,11 @@ InertialSenseROS::InertialSenseROS() :
   }
 
   // Make sure the navigation rate is right, if it's not, then we need to change and reset it.
-  int nav_dt_ms;
+  int nav_dt_ms = flash_config_.startupNavDtMs;
+//  int nav_dt_ms, gps_dt_ms, imu_dt_ms;
+//  nh_private_.param<int>("navigation_dt_ms", nav_dt_ms, flash_config_.startupNavDtMs);
+//  nh_private_.param<int>("GPS_dt_ms", gps_dt_ms, flash_config_.startupGPSDtMs);
+//  nh_private_.param<int>("IMU_dt_ms", imu_dt_ms, flash_config_.startupImuDtMs);
   if (nh_private_.getParam("navigation_dt_ms", nav_dt_ms))
   {
     if (nav_dt_ms != flash_config_.startupNavDtMs)
@@ -105,8 +109,8 @@ InertialSenseROS::InertialSenseROS() :
     else
       ROS_ERROR_STREAM("Failed to connect to base server at " << RTK_connection);
 
-    SET_CALLBACK(DID_GPS1_RTK_MISC, nav_dt_ms, gps_rtk_misc_t, RTK_Misc_callback);
-    SET_CALLBACK(DID_GPS1_RTK_REL, nav_dt_ms, gps_rtk_rel_t, RTK_Rel_callback);
+    SET_CALLBACK(DID_GPS1_RTK_MISC, gps_rtk_misc_t, RTK_Misc_callback);
+    SET_CALLBACK(DID_GPS1_RTK_REL, gps_rtk_rel_t, RTK_Rel_callback);
     RTK_.enabled = true;
     RTK_.pub = nh_.advertise<inertial_sense::RTKInfo>("RTK/info", 10);
     RTK_.pub2 = nh_.advertise<inertial_sense::RTKRel>("RTK/rel", 10);
@@ -137,18 +141,17 @@ InertialSenseROS::InertialSenseROS() :
   /////////////////////////////////////////////////////////
 
   uint32_t rmcBits = RMC_BITS_GPS1_POS | RMC_BITS_GPS1_VEL | RMC_BITS_STROBE_IN_TIME;
-  SET_CALLBACK(DID_GPS1_POS, flash_config_.startupGPSDtMs, gps_pos_t, GPS_pos_callback); // we always need GPS for Fix status
-  SET_CALLBACK(DID_GPS1_VEL, flash_config_.startupGPSDtMs, gps_vel_t, GPS_vel_callback); // we always need GPS for Fix status
-  SET_CALLBACK(DID_STROBE_IN_TIME, 100, strobe_in_time_t, strobe_in_time_callback); // we always want the strobe
+  SET_CALLBACK(DID_GPS1_POS, gps_pos_t, GPS_pos_callback); // we always need GPS for Fix status
+  SET_CALLBACK(DID_GPS1_VEL, gps_vel_t, GPS_vel_callback); // we always need GPS for Fix status
+  SET_CALLBACK(DID_STROBE_IN_TIME, strobe_in_time_t, strobe_in_time_callback); // we always want the strobe
   nh_private_.param<bool>("stream_INS", INS_.enabled, true);
   if (INS_.enabled)
   {
     INS_.pub = nh_.advertise<nav_msgs::Odometry>("ins", 1);
-    SET_CALLBACK(DID_INS_1, nav_dt_ms, ins_1_t, INS1_callback);
-    SET_CALLBACK(DID_INS_2, nav_dt_ms, ins_2_t, INS2_callback);
-    SET_CALLBACK(DID_DUAL_IMU, nav_dt_ms, dual_imu_t, IMU_callback);
+    SET_CALLBACK(DID_INS_1, ins_1_t, INS1_callback);
+    SET_CALLBACK(DID_INS_2, ins_2_t, INS2_callback);
+    SET_CALLBACK(DID_DUAL_IMU, dual_imu_t, IMU_callback);
 //    SET_CALLBACK(DID_INL2_VARIANCE, nav_dt_ms, inl2_variance_t, INS_variance_callback);
-    rmcBits |= RMC_BITS_INS1 | RMC_BITS_INS2 | RMC_BITS_DUAL_IMU;
   }
 
   // Set up the IMU ROS stream
@@ -156,10 +159,9 @@ InertialSenseROS::InertialSenseROS() :
   if (IMU_.enabled)
   {
     IMU_.pub = nh_.advertise<sensor_msgs::Imu>("imu", 1);
-    SET_CALLBACK(DID_INS_1, nav_dt_ms, ins_1_t, INS1_callback);
-    SET_CALLBACK(DID_INS_2, nav_dt_ms, ins_2_t, INS2_callback);
-    SET_CALLBACK(DID_DUAL_IMU, nav_dt_ms, dual_imu_t, IMU_callback);
-    rmcBits |= RMC_BITS_INS1 | RMC_BITS_INS2 | RMC_BITS_DUAL_IMU;
+    SET_CALLBACK(DID_INS_1, ins_1_t, INS1_callback);
+    SET_CALLBACK(DID_INS_2, ins_2_t, INS2_callback);
+    SET_CALLBACK(DID_DUAL_IMU, dual_imu_t, IMU_callback);
   }
 
   // Set up the GPS ROS stream - we always need GPS information for time sync, just don't always need to publish it
@@ -174,10 +176,9 @@ InertialSenseROS::InertialSenseROS() :
     GPS_obs_.pub = nh_.advertise<inertial_sense::GNSSObservation>("gps/obs", 50);
     GPS_eph_.pub = nh_.advertise<inertial_sense::GNSSEphemeris>("gps/eph", 50);
     GPS_eph_.pub2 = nh_.advertise<inertial_sense::GlonassEphemeris>("gps/geph", 50);
-    SET_CALLBACK(DID_GPS1_RAW, flash_config_.startupGPSDtMs, gps_raw_t, GPS_raw_callback);
-    SET_CALLBACK(DID_GPS_BASE_RAW, flash_config_.startupGPSDtMs, gps_raw_t, GPS_raw_callback);
-    SET_CALLBACK(DID_GPS2_RAW, flash_config_.startupGPSDtMs, gps_raw_t, GPS_raw_callback);
-    rmcBits |= RMC_BITS_GPS1_RAW | RMC_BITS_GPS2_RAW | RMC_BITS_GPS_BASE_RAW;
+    SET_CALLBACK(DID_GPS1_RAW, gps_raw_t, GPS_raw_callback);
+    SET_CALLBACK(DID_GPS_BASE_RAW, gps_raw_t, GPS_raw_callback);
+    SET_CALLBACK(DID_GPS2_RAW, gps_raw_t, GPS_raw_callback);
   }
 
   // Set up the GPS info ROS stream
@@ -185,8 +186,7 @@ InertialSenseROS::InertialSenseROS() :
   if (GPS_info_.enabled)
   {
     GPS_info_.pub = nh_.advertise<inertial_sense::GPSInfo>("gps/info", 1);
-    SET_CALLBACK(DID_GPS1_SAT, flash_config_.startupGPSDtMs, gps_sat_t, GPS_info_callback);
-    rmcBits |= RMC_BITS_GPS1_SAT;
+    SET_CALLBACK(DID_GPS1_SAT, gps_sat_t, GPS_info_callback);
   }
 
   // Set up the magnetometer ROS stream
@@ -195,8 +195,7 @@ InertialSenseROS::InertialSenseROS() :
   {
     mag_.pub = nh_.advertise<sensor_msgs::MagneticField>("mag", 1);
     //    mag_.pub2 = nh_.advertise<sensor_msgs::MagneticField>("mag2", 1);
-    SET_CALLBACK(DID_MAGNETOMETER_1, nav_dt_ms, magnetometer_t, mag_callback);
-    rmcBits |= RMC_BITS_MAGNETOMETER1;
+    SET_CALLBACK(DID_MAGNETOMETER_1, magnetometer_t, mag_callback);
   }
 
   // Set up the barometer ROS stream
@@ -204,8 +203,7 @@ InertialSenseROS::InertialSenseROS() :
   if (baro_.enabled)
   {
     baro_.pub = nh_.advertise<sensor_msgs::FluidPressure>("baro", 1);
-    SET_CALLBACK(DID_BAROMETER, nav_dt_ms, barometer_t, baro_callback);
-    rmcBits |= RMC_BITS_BAROMETER;
+    SET_CALLBACK(DID_BAROMETER, barometer_t, baro_callback);
   }
 
   // Set up the preintegrated IMU (coning and sculling integral) ROS stream
@@ -213,29 +211,26 @@ InertialSenseROS::InertialSenseROS() :
   if (dt_vel_.enabled)
   {
     dt_vel_.pub = nh_.advertise<inertial_sense::PreIntIMU>("preint_imu", 1);
-    SET_CALLBACK(DID_PREINTEGRATED_IMU, nav_dt_ms, preintegrated_imu_t, preint_IMU_callback);
-    rmcBits |= RMC_BITS_PREINTEGRATED_IMU;
+    SET_CALLBACK(DID_PREINTEGRATED_IMU, preintegrated_imu_t, preint_IMU_callback);
   }
   if (RTK_state_ != RTK_NONE)
-    rmcBits |= RMC_BITS_GPS1_RTK_REL | RMC_BITS_GPS1_RTK_POS | RMC_BITS_GPS1_RTK_MISC;
-  IS_.BroadcastBinaryDataRmcPreset(rmcBits);
 
 
   /////////////////////////////////////////////////////////
   /// ASCII OUTPUT CONFIGURATION
   /////////////////////////////////////////////////////////
 
-  int NMEA_rate = nh_private_.param<int>("NMEA_rate", 0);
-  int NMEA_message_configuration = nh_private_.param<int>("NMEA_configuration", 0x00);
-  int NMEA_message_ports = nh_private_.param<int>("NMEA_ports", 0x00);
-  ascii_msgs_t msgs = {};
-  msgs.options = (NMEA_message_ports & NMEA_SER0) ? RMC_OPTIONS_PORT_SER0 : 0; // output on serial 0
-  msgs.options |= (NMEA_message_ports & NMEA_SER1) ? RMC_OPTIONS_PORT_SER1 : 0; // output on serial 1
-  msgs.gpgga = (NMEA_message_configuration & NMEA_GPGGA) ? NMEA_rate : 0;
-  msgs.gpgll = (NMEA_message_configuration & NMEA_GPGLL) ? NMEA_rate : 0;
-  msgs.gpgsa = (NMEA_message_configuration & NMEA_GPGSA) ? NMEA_rate : 0;
-  msgs.gprmc = (NMEA_message_configuration & NMEA_GPRMC) ? NMEA_rate : 0;
-  IS_.SendData(DID_ASCII_BCAST_PERIOD, (uint8_t*)(&msgs), sizeof(ascii_msgs_t), 0);
+//  int NMEA_rate = nh_private_.param<int>("NMEA_rate", 0);
+//  int NMEA_message_configuration = nh_private_.param<int>("NMEA_configuration", 0x00);
+//  int NMEA_message_ports = nh_private_.param<int>("NMEA_ports", 0x00);
+//  ascii_msgs_t msgs = {};
+//  msgs.options = (NMEA_message_ports & NMEA_SER0) ? RMC_OPTIONS_PORT_SER0 : 0; // output on serial 0
+//  msgs.options |= (NMEA_message_ports & NMEA_SER1) ? RMC_OPTIONS_PORT_SER1 : 0; // output on serial 1
+//  msgs.gpgga = (NMEA_message_configuration & NMEA_GPGGA) ? NMEA_rate : 0;
+//  msgs.gpgll = (NMEA_message_configuration & NMEA_GPGLL) ? NMEA_rate : 0;
+//  msgs.gpgsa = (NMEA_message_configuration & NMEA_GPGSA) ? NMEA_rate : 0;
+//  msgs.gprmc = (NMEA_message_configuration & NMEA_GPRMC) ? NMEA_rate : 0;
+//  IS_.SendData(DID_ASCII_BCAST_PERIOD, (uint8_t*)(&msgs), sizeof(ascii_msgs_t), 0);
 
   initialized_ = true;
 }
@@ -252,6 +247,7 @@ void InertialSenseROS::set_vector_flash_config(std::string param_name, uint32_t 
   }
   
   IS_.SendData(DID_FLASH_CONFIG, reinterpret_cast<uint8_t*>(&v), sizeof(v), offset);
+  flash_config_ = IS_.GetFlashConfig();
 }
 
 template <typename T>
@@ -655,8 +651,10 @@ bool InertialSenseROS::perform_multi_mag_cal_srv_callback(std_srvs::Trigger::Req
 void InertialSenseROS::reset_device()
 {
   // send reset command
-  uint32_t reset_command = 99;
-  IS_.SendData(DID_CONFIG, reinterpret_cast<uint8_t*>(&reset_command), sizeof(uint32_t), offsetof(config_t, system));
+  config_t reset_command;
+  reset_command.system = 99;
+  reset_command.invSystem = ~reset_command.system;
+  IS_.SendData(DID_CONFIG, reinterpret_cast<uint8_t*>(&reset_command), sizeof(config_t), 0);
   sleep(3);
 }
 
