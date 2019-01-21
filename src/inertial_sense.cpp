@@ -10,7 +10,7 @@
     [this](InertialSense*i, p_data_t* data, int pHandle)\
     { \
         this->__cb_fun(reinterpret_cast<__type*>(data->buf));\
-    });
+    })
 
 
 InertialSenseROS::InertialSenseROS() :
@@ -52,19 +52,6 @@ InertialSenseROS::InertialSenseROS() :
       ROS_INFO("navigation rate change from %dms to %dms, resetting uINS to make change", flash_config_.startupNavDtMs, nav_dt_ms);
       sleep(3);
       reset_device();
-
-      // Re-request flash config to confirm change
-//      IS_.BroadcastBinaryData(DID_FLASH_CONFIG, 0, 0);
-//      for (int i = 0; i < 1000; i++)
-//      {
-//        IS_.Update();
-//        usleep(1000);
-//      }
-//      flash_config_ = IS_.GetFlashConfig();
-//      if (flash_config_.startupNavDtMs != nav_dt_ms)
-//        ROS_ERROR("inertialsense: unable to change navigation rate from %dms to %dms", flash_config_.startupNavDtMs, nav_dt_ms);
-//      else
-//        ROS_INFO("Set navigation rate to %dms", flash_config_.startupNavDtMs);
     }
   }
   
@@ -113,8 +100,8 @@ InertialSenseROS::InertialSenseROS() :
     ROS_INFO("InertialSense: Configured as dual GNSS (compassing)");
     RTK_state_ = DUAL_GNSS;
     RTKCfgBits |= RTK_CFG_BITS_COMPASSING;
-    SET_CALLBACK(DID_GPS1_RTK_MISC, nav_dt_ms, gps_rtk_misc_t, RTK_Misc_callback);
-    SET_CALLBACK(DID_GPS1_RTK_REL, nav_dt_ms, gps_rtk_rel_t, RTK_Rel_callback);
+    SET_CALLBACK(DID_GPS1_RTK_MISC, gps_rtk_misc_t, RTK_Misc_callback);
+    SET_CALLBACK(DID_GPS1_RTK_REL, gps_rtk_rel_t, RTK_Rel_callback);
     RTK_.enabled = true;
     RTK_.pub = nh_.advertise<inertial_sense::RTKInfo>("RTK/info", 10);
     RTK_.pub2 = nh_.advertise<inertial_sense::RTKRel>("RTK/rel", 10);
@@ -164,7 +151,6 @@ InertialSenseROS::InertialSenseROS() :
   /// DATA STREAMS CONFIGURATION
   /////////////////////////////////////////////////////////
 
-  uint32_t rmcBits = RMC_BITS_GPS1_POS | RMC_BITS_GPS1_VEL | RMC_BITS_STROBE_IN_TIME;
   SET_CALLBACK(DID_GPS1_POS, gps_pos_t, GPS_pos_callback); // we always need GPS for Fix status
   SET_CALLBACK(DID_GPS1_VEL, gps_vel_t, GPS_vel_callback); // we always need GPS for Fix status
   SET_CALLBACK(DID_STROBE_IN_TIME, strobe_in_time_t, strobe_in_time_callback); // we always want the strobe
@@ -237,12 +223,13 @@ InertialSenseROS::InertialSenseROS() :
     dt_vel_.pub = nh_.advertise<inertial_sense::PreIntIMU>("preint_imu", 1);
     SET_CALLBACK(DID_PREINTEGRATED_IMU, preintegrated_imu_t, preint_IMU_callback);
   }
-  if (RTK_state_ != RTK_NONE)
 
 
-  /////////////////////////////////////////////////////////
-  /// ASCII OUTPUT CONFIGURATION
-  /////////////////////////////////////////////////////////
+
+
+//  ///////////////////////////////////////////////////////
+//  / ASCII OUTPUT CONFIGURATION
+//  ///////////////////////////////////////////////////////
 
 //  int NMEA_rate = nh_private_.param<int>("NMEA_rate", 0);
 //  int NMEA_message_configuration = nh_private_.param<int>("NMEA_configuration", 0x00);
