@@ -6,7 +6,6 @@ A ROS wrapper for the InertialSense uINS3 RTK-GPS-INS and Dual GPS (GPS Compassi
 ## NOTICE:
 
 To use this node, you will need to update firmware on your uINS to v1.7.3 [release page](https://github.com/inertialsense/InertialSenseSDK/releases). Download the appropriate `.hex` file and use the `firmware_update` ROS service to update the firmware
-
 ``` 
 rosservice call /firmware_update /home/superjax/Download/IS_uINS-3_v1.7.3<...>.hex
 ```
@@ -96,19 +95,19 @@ Topics are enabled and disabled using parameters.  By default, only the `ins` to
 
 * `~port` (string, default: "/dev/ttyUSB0")
   - Serial port to connect to
-* `~baud` (int, default: 3000000)
+* `~baudrate` (int, default: 921600)
   - baudrate of serial communication
 * `~frame_id` (string, default "body")
   - frame id of all measurements
 
 **Topic Configuration**
-* `~navigation_dt_ms` (int, default: 10)
+* `~navigation_dt_ms` (int, default: Value retrieved from device flash configuration)
    - milliseconds between internal navigation filter updates (min=2ms/500Hz).  This is also determines the rate at which the topics are published.
 * `~stream_INS` (bool, default: true)
    - Flag to stream navigation solution or not
-* `~stream_IMU` (bool, default: true)
+* `~stream_IMU` (bool, default: false)
    - Flag to stream IMU measurements or not
-* `~stream_baro` (bool, default: 0)
+* `~stream_baro` (bool, default: false)
    - Flag to stream baro or not
 * `~stream_mag` (bool, default: false)
    - Flag to stream magnetometer or not
@@ -122,7 +121,7 @@ Topics are enabled and disabled using parameters.  By default, only the `ins` to
    - Flag to stream GPS raw messages
 
 **RTK Configuration**
-* `~RTK_Rover` (bool, default: false)
+* `~RTK_rover` (bool, default: false)
   - Enables RTK rover mode (requires base corrections from an RTK base)
 * `~RTK_base` (bool, default: false)
   - Makes the connected uINS a RTK base station and enables the publishing of corrections
@@ -163,17 +162,17 @@ Topics are enabled and disabled using parameters.  By default, only the `ins` to
        - 9 = wrist
 
 **ASCII Output Configuration**
-* `~ser1_baud_rate` (int, default: 115200)
+* `~ser1_baud_rate` (int, default: 921600)
     - baud rate for serial1 port used for external NMEA messaging (located on H6-5) [serial port hardware connections](http://docs.inertialsense.com/user-manual/Setup_Integration/hardware_integration/#pin-definition)
 * `~NMEA_rate` (int, default: 0)
     - Rate to publish NMEA messages
-* `~NMEA_configuration` (int, default: 0)
+* `~NMEA_configuration` (int, default: 0x00)
     - bitmask to enable NMEA messages (bitwise OR to enable multiple message streams).
       - GPGGA = 0x01
       - GPGLL = 0x02
       - GPGSA = 0x04
       - GPRMC = 0x08
-* `~NMEA_ports` (int, default: 0)
+* `~NMEA_ports` (int, default: 0x00)
     - bitmask to enable NMEA message on serial ports (bitwise OR to enable both ports) 
       - Ser0 (USB/H4-4)  = 0x01 
       - Ser1 (H6-5) = 0x02 

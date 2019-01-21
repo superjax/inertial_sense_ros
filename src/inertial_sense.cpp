@@ -9,8 +9,10 @@
     IS_.BroadcastBinaryData(DID, 1, \
     [this](InertialSense*i, p_data_t* data, int pHandle)\
     { \
+        /*ROS_INFO("Got message %d", DID); */\
         this->__cb_fun(reinterpret_cast<__type*>(data->buf));\
     })
+
 
 
 InertialSenseROS::InertialSenseROS() :
@@ -177,7 +179,7 @@ void InertialSenseROS::configure_parameters()
   set_flash_config<float>("inclination", offsetof(nvm_flash_cfg_t, magInclination), 1.14878541071f);
   set_flash_config<float>("declination", offsetof(nvm_flash_cfg_t, magDeclination), 0.20007290992f);
   set_flash_config<int>("dynamic_model", offsetof(nvm_flash_cfg_t, insDynModel), 8);
-  set_flash_config<int>("ser1_baud_rate", offsetof(nvm_flash_cfg_t, ser1BaudRate), 115200);
+  set_flash_config<int>("ser1_baud_rate", offsetof(nvm_flash_cfg_t, ser1BaudRate), 921600);
 }
 
 
