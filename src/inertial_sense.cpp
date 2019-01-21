@@ -26,13 +26,22 @@ InertialSenseROS::InertialSenseROS() :
   mag_cal_srv_ = nh_.advertiseService("single_axis_mag_cal", &InertialSenseROS::perform_mag_cal_srv_callback, this);
   multi_mag_cal_srv_ = nh_.advertiseService("multi_axis_mag_cal", &InertialSenseROS::perform_multi_mag_cal_srv_callback, this);
   firmware_update_srv_ = nh_.advertiseService("firmware_update", &InertialSenseROS::update_firmware_srv_callback, this);
+  wheel_enc_sub_ = nh_.subscribe("joint_states", 20, &InertialSenseROS::wheel_enc_callback, this);
   
   // Stop all broadcasts
   IS_.StopBroadcasts();
 
   configure_parameters();
   configure_data_streams();
+
+  nh_private_.param<bool>("enable_log", log_enabled_, false);
+  if (log_enabled_)
+  {
+    start_log();
+  }
+
   configure_ascii_output();
+  configure_wheel_encoders();
 
   initialized_ = true;
 }
@@ -113,6 +122,13 @@ void InertialSenseROS::configure_data_streams()
     SET_CALLBACK(DID_PREINTEGRATED_IMU, preintegrated_imu_t, preint_IMU_callback);
   }
 
+}
+
+void InertialSenseROS::start_log()
+{
+  std::string filename = cISLogger::CreateCurrentTimestamp();
+  ROS_INFO_STREAM("Creating log in " << filename << " folder");
+  IS_.SetLoggerEnabled(true, filename, cISLogger::LOGTYPE_DAT, RMC_PRESET_PPD_ROBOT);
 }
 
 void InertialSenseROS::configure_ascii_output()
@@ -687,6 +703,28 @@ bool InertialSenseROS::update_firmware_srv_callback(inertial_sense::FirmwareUpda
   return true;
 }
 
+void InertialSenseROS::wheel_enc_callback(const sensor_msgs::JointStateConstPtr &msg)
+{
+  wheel_encoder_t wheel_enc_msg;
+  wheel_enc_msg.timeOfWeekMs = tow_from_ros_time(msg->header.stamp);
+  wheel_enc_msg.theta_l = msg->position[0];
+  wheel_enc_msg.theta_r = msg->position[1];
+  wheel_enc_msg.omega_l = msg->velocity[0];
+  wheel_enc_msg.omega_r = msg->velocity[1];
+  IS_.SendData(DID_WHEEL_ENCODER, reinterpret_cast<uint8_t*>(&wheel_enc_msg), 0, 0);
+}
+
+void InertialSenseROS::configure_wheel_encoders()
+{
+  wheel_encoder_config_t wheel_encoder_config;
+  std::vector<double> q_i2l, t_i2l;
+  nh_private_.getParam("q_wheel_enc", q_i2l);
+  nh_private_.getParam("t_wheel_enc", t_i2l);
+  nh_private_.getParam("diameter", wheel_encoder_config.diameter);
+  nh_private_.getParam("distance", wheel_encoder_config.distance);
+  IS_.SendData(DID_WHEEL_ENCODER_CONFIG, reinterpret_cast<uint8_t*>(&wheel_encoder_config), 0, 0);
+}
+
 ros::Time InertialSenseROS::ros_time_from_week_and_tow(const uint32_t week, const double timeOfWeek)
 {
   ros::Time rostime(0, 0);
@@ -749,6 +787,11 @@ ros::Time InertialSenseROS::ros_time_from_start_time(const double time)
 ros::Time InertialSenseROS::ros_time_from_tow(const double tow)
 {
   return ros_time_from_week_and_tow(GPS_week_, tow);
+}
+
+double InertialSenseROS::tow_from_ros_time(const ros::Time &rt)
+{
+  return rt.sec - UNIX_TO_GPS_OFFSET - GPS_week_*7*24*3600 + rt.nsec*1e9;
 }
 
 

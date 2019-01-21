@@ -13,6 +13,7 @@
 #include "sensor_msgs/Imu.h"
 #include "sensor_msgs/MagneticField.h"
 #include "sensor_msgs/FluidPressure.h"
+#include "sensor_msgs/JointState.h"
 #include "inertial_sense/GPS.h"
 #include "inertial_sense/GPSInfo.h"
 #include "inertial_sense/PreIntIMU.h"
@@ -56,6 +57,7 @@ private:
   void configure_rtk();
   void configure_data_streams();
   void configure_ascii_output();
+  void start_log();
   
   template<typename T> void set_vector_flash_config(std::string param_name, uint32_t size, uint32_t offset);
   template<typename T>  void set_flash_config(std::string param_name, uint32_t offset, T def);
@@ -66,6 +68,7 @@ private:
   std::string port_;
   int baudrate_;
   bool initialized_;
+  bool log_enabled_;
 
   std::string frame_id_;
 
@@ -110,6 +113,7 @@ private:
   ros::Publisher strobe_pub_;
   void strobe_in_time_callback(const strobe_in_time_t * const msg);
 
+  ros::Subscriber wheel_enc_sub_;
   ros::ServiceServer mag_cal_srv_;
   ros::ServiceServer multi_mag_cal_srv_;
   ros::ServiceServer firmware_update_srv_;
@@ -118,6 +122,8 @@ private:
   bool perform_mag_cal_srv_callback(std_srvs::Trigger::Request & req, std_srvs::Trigger::Response & res);
   bool perform_multi_mag_cal_srv_callback(std_srvs::Trigger::Request & req, std_srvs::Trigger::Response & res);
   bool update_firmware_srv_callback(inertial_sense::FirmwareUpdate::Request & req, inertial_sense::FirmwareUpdate::Response & res);
+  void wheel_enc_callback(const sensor_msgs::JointStateConstPtr& msg);
+  void configure_wheel_encoders();
   
   void publishGPS();
 
@@ -157,6 +163,9 @@ private:
    * @return equivalent ros::Time
    */
   ros::Time ros_time_from_tow(const double tow);
+
+  double tow_from_ros_time(const ros::Time& rt);
+
   double GPS_towOffset_ = 0; // The offset between GPS time-of-week and local time on the uINS
                              //  If this number is 0, then we have not yet got a fix
   uint64_t GPS_week_ = 0; // Week number to start of GPS_towOffset_ in GPS time
