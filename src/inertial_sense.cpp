@@ -16,45 +16,9 @@
 InertialSenseROS::InertialSenseROS() :
   nh_(), nh_private_("~"), initialized_(false)
 {
-  nh_private_.param<std::string>("port", port_, "/dev/ttyUSB0");
-  nh_private_.param<int>("baudrate", baudrate_, 921600);
-  nh_private_.param<std::string>("frame_id", frame_id_, "body");
+  connect();
+  set_navigation_dt_ms();
 
-  /// Connect to the uINS
-  ROS_INFO("Connecting to serial port \"%s\", at %d baud", port_.c_str(), baudrate_);
-  if (! IS_.Open(port_.c_str(), baudrate_))
-  {
-    ROS_FATAL("inertialsense: Unable to open serial port \"%s\", at %d baud", port_.c_str(), baudrate_);
-    exit(0);
-  }
-  else
-  {
-    // Get the Device Info and the FlashConfig
-    dev_info_ = IS_.GetDeviceInfo();
-    flash_config_ = IS_.GetFlashConfig();
-
-    // Print if Successful
-    ROS_INFO("Connected to uINS %d on \"%s\", at %d baud", dev_info_.serialNumber, port_.c_str(), baudrate_);
-  }
-
-  // Make sure the navigation rate is right, if it's not, then we need to change and reset it.
-  int nav_dt_ms = flash_config_.startupNavDtMs;
-//  int nav_dt_ms, gps_dt_ms, imu_dt_ms;
-//  nh_private_.param<int>("navigation_dt_ms", nav_dt_ms, flash_config_.startupNavDtMs);
-//  nh_private_.param<int>("GPS_dt_ms", gps_dt_ms, flash_config_.startupGPSDtMs);
-//  nh_private_.param<int>("IMU_dt_ms", imu_dt_ms, flash_config_.startupImuDtMs);
-  if (nh_private_.getParam("navigation_dt_ms", nav_dt_ms))
-  {
-    if (nav_dt_ms != flash_config_.startupNavDtMs)
-    {
-      uint32_t data = nav_dt_ms;
-      IS_.SendData(DID_FLASH_CONFIG, (uint8_t*)(&data), sizeof(uint32_t), offsetof(nvm_flash_cfg_t, startupNavDtMs));
-      ROS_INFO("navigation rate change from %dms to %dms, resetting uINS to make change", flash_config_.startupNavDtMs, nav_dt_ms);
-      sleep(3);
-      reset_device();
-    }
-  }
-  
   /// Start Up ROS service servers
   refLLA_set_srv_ = nh_.advertiseService("set_refLLA", &InertialSenseROS::set_current_position_as_refLLA, this);
   mag_cal_srv_ = nh_.advertiseService("single_axis_mag_cal", &InertialSenseROS::perform_mag_cal_srv_callback, this);
@@ -64,93 +28,16 @@ InertialSenseROS::InertialSenseROS() :
   // Stop all broadcasts
   IS_.StopBroadcasts();
 
-  /////////////////////////////////////////////////////////
-  /// PARAMETER CONFIGURATION
-  /////////////////////////////////////////////////////////
-  set_vector_flash_config<float>("INS_rpy", 3, offsetof(nvm_flash_cfg_t, insRotation));
-  set_vector_flash_config<float>("INS_xyz", 3, offsetof(nvm_flash_cfg_t, insOffset));
-  set_vector_flash_config<float>("GPS_ant1_xyz", 3, offsetof(nvm_flash_cfg_t, gps1AntOffset));
-  set_vector_flash_config<float>("GPS_ant2_xyz", 3, offsetof(nvm_flash_cfg_t, gps2AntOffset));
-  set_vector_flash_config<double>("GPS_ref_lla", 3, offsetof(nvm_flash_cfg_t, refLla));
-  
-  set_flash_config<float>("inclination", offsetof(nvm_flash_cfg_t, magInclination), 1.14878541071f);
-  set_flash_config<float>("declination", offsetof(nvm_flash_cfg_t, magDeclination), 0.20007290992f);
-  set_flash_config<int>("dynamic_model", offsetof(nvm_flash_cfg_t, insDynModel), 8);
-  set_flash_config<int>("ser1_baud_rate", offsetof(nvm_flash_cfg_t, ser1BaudRate), 115200);
+  configure_parameters();
+  configure_data_streams();
+  configure_ascii_output();
 
-  /////////////////////////////////////////////////////////
-  /// RTK Configuration
-  /////////////////////////////////////////////////////////
-  bool RTK_rover, RTK_base, dual_GNSS;
-  nh_private_.param<bool>("RTK_rover", RTK_rover, false);
-  nh_private_.param<bool>("RTK_base", RTK_base, false);
-  nh_private_.param<bool>("dual_GNSS", dual_GNSS, false);
-  std::string RTK_server_IP, RTK_correction_type;
-  int RTK_server_port;
-  nh_private_.param<std::string>("RTK_server_IP", RTK_server_IP, "127.0.0.1");
-  nh_private_.param<int>("RTK_server_port", RTK_server_port, 7777);
-  nh_private_.param<std::string>("RTK_correction_type", RTK_correction_type, "UBLOX");
-  ROS_ERROR_COND(RTK_rover && RTK_base, "unable to configure uINS to be both RTK rover and base - default to rover");
-  ROS_ERROR_COND(RTK_rover && dual_GNSS, "unable to configure uINS to be both RTK rover as dual GNSS - default to dual GNSS");
-  
-  uint32_t RTKCfgBits = 0;
-  if (dual_GNSS)
-  {
-    RTK_rover = false;
-    ROS_INFO("InertialSense: Configured as dual GNSS (compassing)");
-    RTK_state_ = DUAL_GNSS;
-    RTKCfgBits |= RTK_CFG_BITS_COMPASSING;
-    SET_CALLBACK(DID_GPS1_RTK_MISC, gps_rtk_misc_t, RTK_Misc_callback);
-    SET_CALLBACK(DID_GPS1_RTK_REL, gps_rtk_rel_t, RTK_Rel_callback);
-    RTK_.enabled = true;
-    RTK_.pub = nh_.advertise<inertial_sense::RTKInfo>("RTK/info", 10);
-    RTK_.pub2 = nh_.advertise<inertial_sense::RTKRel>("RTK/rel", 10);
-  }
-
-  if (RTK_rover)
-  {
-    RTK_base = false;
-    std::string RTK_connection =  RTK_correction_type + ":" + RTK_server_IP + ":" + std::to_string(RTK_server_port);
-    ROS_INFO("InertialSense: Configured as RTK Rover");
-    RTK_state_ = RTK_ROVER;
-    RTKCfgBits |= RTK_CFG_BITS_GPS1_RTK_ROVER;
-
-    if (IS_.OpenServerConnection(RTK_connection))
-      ROS_INFO_STREAM("Successfully connected to " << RTK_connection << " RTK server");
-    else
-      ROS_ERROR_STREAM("Failed to connect to base server at " << RTK_connection);
-
-    SET_CALLBACK(DID_GPS1_RTK_MISC, gps_rtk_misc_t, RTK_Misc_callback);
-    SET_CALLBACK(DID_GPS1_RTK_REL, gps_rtk_rel_t, RTK_Rel_callback);
-    RTK_.enabled = true;
-    RTK_.pub = nh_.advertise<inertial_sense::RTKInfo>("RTK/info", 10);
-    RTK_.pub2 = nh_.advertise<inertial_sense::RTKRel>("RTK/rel", 10);
-  }
-
-  else if (RTK_base)
-  {
-    std::string RTK_connection =  RTK_server_IP + ":" + std::to_string(RTK_server_port);
-    RTK_.enabled = true;
-    ROS_INFO("InertialSense: Configured as RTK Base");
-    RTK_state_ = RTK_BASE;
-    RTKCfgBits |= RTK_CFG_BITS_BASE_OUTPUT_GPS1_UBLOX_SER0;
-
-    if (IS_.CreateHost(RTK_connection))
-    {
-      ROS_INFO_STREAM("Successfully created " << RTK_connection << " as RTK server");
-      initialized_ = true;
-      return;
-    }
-    else
-      ROS_ERROR_STREAM("Failed to create base server at " << RTK_connection);
-  }
-  IS_.SendData(DID_FLASH_CONFIG, reinterpret_cast<uint8_t*>(&RTKCfgBits), sizeof(RTKCfgBits), offsetof(nvm_flash_cfg_t, RTKCfgBits));
+  initialized_ = true;
+}
 
 
-  /////////////////////////////////////////////////////////
-  /// DATA STREAMS CONFIGURATION
-  /////////////////////////////////////////////////////////
-
+void InertialSenseROS::configure_data_streams()
+{
   SET_CALLBACK(DID_GPS1_POS, gps_pos_t, GPS_pos_callback); // we always need GPS for Fix status
   SET_CALLBACK(DID_GPS1_VEL, gps_vel_t, GPS_vel_callback); // we always need GPS for Fix status
   SET_CALLBACK(DID_STROBE_IN_TIME, strobe_in_time_t, strobe_in_time_callback); // we always want the strobe
@@ -224,26 +111,142 @@ InertialSenseROS::InertialSenseROS() :
     SET_CALLBACK(DID_PREINTEGRATED_IMU, preintegrated_imu_t, preint_IMU_callback);
   }
 
+}
+
+void InertialSenseROS::configure_ascii_output()
+{
+  //  int NMEA_rate = nh_private_.param<int>("NMEA_rate", 0);
+  //  int NMEA_message_configuration = nh_private_.param<int>("NMEA_configuration", 0x00);
+  //  int NMEA_message_ports = nh_private_.param<int>("NMEA_ports", 0x00);
+  //  ascii_msgs_t msgs = {};
+  //  msgs.options = (NMEA_message_ports & NMEA_SER0) ? RMC_OPTIONS_PORT_SER0 : 0; // output on serial 0
+  //  msgs.options |= (NMEA_message_ports & NMEA_SER1) ? RMC_OPTIONS_PORT_SER1 : 0; // output on serial 1
+  //  msgs.gpgga = (NMEA_message_configuration & NMEA_GPGGA) ? NMEA_rate : 0;
+  //  msgs.gpgll = (NMEA_message_configuration & NMEA_GPGLL) ? NMEA_rate : 0;
+  //  msgs.gpgsa = (NMEA_message_configuration & NMEA_GPGSA) ? NMEA_rate : 0;
+  //  msgs.gprmc = (NMEA_message_configuration & NMEA_GPRMC) ? NMEA_rate : 0;
+  //  IS_.SendData(DID_ASCII_BCAST_PERIOD, (uint8_t*)(&msgs), sizeof(ascii_msgs_t), 0);
+
+}
+
+void InertialSenseROS::connect()
+{
+  nh_private_.param<std::string>("port", port_, "/dev/ttyUSB0");
+  nh_private_.param<int>("baudrate", baudrate_, 921600);
+  nh_private_.param<std::string>("frame_id", frame_id_, "body");
+
+  /// Connect to the uINS
+  ROS_INFO("Connecting to serial port \"%s\", at %d baud", port_.c_str(), baudrate_);
+  if (! IS_.Open(port_.c_str(), baudrate_))
+  {
+    ROS_FATAL("inertialsense: Unable to open serial port \"%s\", at %d baud", port_.c_str(), baudrate_);
+    exit(0);
+  }
+  else
+  {
+    // Print if Successful
+    ROS_INFO("Connected to uINS %d on \"%s\", at %d baud", IS_.GetDeviceInfo().serialNumber, port_.c_str(), baudrate_);
+  }
+}
+
+void InertialSenseROS::set_navigation_dt_ms()
+{
+  // Make sure the navigation rate is right, if it's not, then we need to change and reset it.
+  int nav_dt_ms = IS_.GetFlashConfig().startupNavDtMs;
+  if (nh_private_.getParam("navigation_dt_ms", nav_dt_ms))
+  {
+    if (nav_dt_ms != IS_.GetFlashConfig().startupNavDtMs)
+    {
+      uint32_t data = nav_dt_ms;
+      IS_.SendData(DID_FLASH_CONFIG, (uint8_t*)(&data), sizeof(uint32_t), offsetof(nvm_flash_cfg_t, startupNavDtMs));
+      ROS_INFO("navigation rate change from %dms to %dms, resetting uINS to make change", IS_.GetFlashConfig().startupNavDtMs, nav_dt_ms);
+      sleep(3);
+      reset_device();
+    }
+  }
+}
+
+void InertialSenseROS::configure_parameters()
+{
+  set_vector_flash_config<float>("INS_rpy", 3, offsetof(nvm_flash_cfg_t, insRotation));
+  set_vector_flash_config<float>("INS_xyz", 3, offsetof(nvm_flash_cfg_t, insOffset));
+  set_vector_flash_config<float>("GPS_ant1_xyz", 3, offsetof(nvm_flash_cfg_t, gps1AntOffset));
+  set_vector_flash_config<float>("GPS_ant2_xyz", 3, offsetof(nvm_flash_cfg_t, gps2AntOffset));
+  set_vector_flash_config<double>("GPS_ref_lla", 3, offsetof(nvm_flash_cfg_t, refLla));
+
+  set_flash_config<float>("inclination", offsetof(nvm_flash_cfg_t, magInclination), 1.14878541071f);
+  set_flash_config<float>("declination", offsetof(nvm_flash_cfg_t, magDeclination), 0.20007290992f);
+  set_flash_config<int>("dynamic_model", offsetof(nvm_flash_cfg_t, insDynModel), 8);
+  set_flash_config<int>("ser1_baud_rate", offsetof(nvm_flash_cfg_t, ser1BaudRate), 115200);
+}
 
 
+void InertialSenseROS::configure_rtk()
+{
+  bool RTK_rover, RTK_base, dual_GNSS;
+  nh_private_.param<bool>("RTK_rover", RTK_rover, false);
+  nh_private_.param<bool>("RTK_base", RTK_base, false);
+  nh_private_.param<bool>("dual_GNSS", dual_GNSS, false);
+  std::string RTK_server_IP, RTK_correction_type;
+  int RTK_server_port;
+  nh_private_.param<std::string>("RTK_server_IP", RTK_server_IP, "127.0.0.1");
+  nh_private_.param<int>("RTK_server_port", RTK_server_port, 7777);
+  nh_private_.param<std::string>("RTK_correction_type", RTK_correction_type, "UBLOX");
+  ROS_ERROR_COND(RTK_rover && RTK_base, "unable to configure uINS to be both RTK rover and base - default to rover");
+  ROS_ERROR_COND(RTK_rover && dual_GNSS, "unable to configure uINS to be both RTK rover as dual GNSS - default to dual GNSS");
 
-//  ///////////////////////////////////////////////////////
-//  / ASCII OUTPUT CONFIGURATION
-//  ///////////////////////////////////////////////////////
+  uint32_t RTKCfgBits = 0;
+  if (dual_GNSS)
+  {
+    RTK_rover = false;
+    ROS_INFO("InertialSense: Configured as dual GNSS (compassing)");
+    RTK_state_ = DUAL_GNSS;
+    RTKCfgBits |= RTK_CFG_BITS_COMPASSING;
+    SET_CALLBACK(DID_GPS1_RTK_MISC, gps_rtk_misc_t, RTK_Misc_callback);
+    SET_CALLBACK(DID_GPS1_RTK_REL, gps_rtk_rel_t, RTK_Rel_callback);
+    RTK_.enabled = true;
+    RTK_.pub = nh_.advertise<inertial_sense::RTKInfo>("RTK/info", 10);
+    RTK_.pub2 = nh_.advertise<inertial_sense::RTKRel>("RTK/rel", 10);
+  }
 
-//  int NMEA_rate = nh_private_.param<int>("NMEA_rate", 0);
-//  int NMEA_message_configuration = nh_private_.param<int>("NMEA_configuration", 0x00);
-//  int NMEA_message_ports = nh_private_.param<int>("NMEA_ports", 0x00);
-//  ascii_msgs_t msgs = {};
-//  msgs.options = (NMEA_message_ports & NMEA_SER0) ? RMC_OPTIONS_PORT_SER0 : 0; // output on serial 0
-//  msgs.options |= (NMEA_message_ports & NMEA_SER1) ? RMC_OPTIONS_PORT_SER1 : 0; // output on serial 1
-//  msgs.gpgga = (NMEA_message_configuration & NMEA_GPGGA) ? NMEA_rate : 0;
-//  msgs.gpgll = (NMEA_message_configuration & NMEA_GPGLL) ? NMEA_rate : 0;
-//  msgs.gpgsa = (NMEA_message_configuration & NMEA_GPGSA) ? NMEA_rate : 0;
-//  msgs.gprmc = (NMEA_message_configuration & NMEA_GPRMC) ? NMEA_rate : 0;
-//  IS_.SendData(DID_ASCII_BCAST_PERIOD, (uint8_t*)(&msgs), sizeof(ascii_msgs_t), 0);
+  if (RTK_rover)
+  {
+    RTK_base = false;
+    std::string RTK_connection =  RTK_correction_type + ":" + RTK_server_IP + ":" + std::to_string(RTK_server_port);
+    ROS_INFO("InertialSense: Configured as RTK Rover");
+    RTK_state_ = RTK_ROVER;
+    RTKCfgBits |= RTK_CFG_BITS_GPS1_RTK_ROVER;
 
-  initialized_ = true;
+    if (IS_.OpenServerConnection(RTK_connection))
+      ROS_INFO_STREAM("Successfully connected to " << RTK_connection << " RTK server");
+    else
+      ROS_ERROR_STREAM("Failed to connect to base server at " << RTK_connection);
+
+    SET_CALLBACK(DID_GPS1_RTK_MISC, gps_rtk_misc_t, RTK_Misc_callback);
+    SET_CALLBACK(DID_GPS1_RTK_REL, gps_rtk_rel_t, RTK_Rel_callback);
+    RTK_.enabled = true;
+    RTK_.pub = nh_.advertise<inertial_sense::RTKInfo>("RTK/info", 10);
+    RTK_.pub2 = nh_.advertise<inertial_sense::RTKRel>("RTK/rel", 10);
+  }
+
+  else if (RTK_base)
+  {
+    std::string RTK_connection =  RTK_server_IP + ":" + std::to_string(RTK_server_port);
+    RTK_.enabled = true;
+    ROS_INFO("InertialSense: Configured as RTK Base");
+    RTK_state_ = RTK_BASE;
+    RTKCfgBits |= RTK_CFG_BITS_BASE_OUTPUT_GPS1_UBLOX_SER0;
+
+    if (IS_.CreateHost(RTK_connection))
+    {
+      ROS_INFO_STREAM("Successfully created " << RTK_connection << " as RTK server");
+      initialized_ = true;
+      return;
+    }
+    else
+      ROS_ERROR_STREAM("Failed to create base server at " << RTK_connection);
+  }
+  IS_.SendData(DID_FLASH_CONFIG, reinterpret_cast<uint8_t*>(&RTKCfgBits), sizeof(RTKCfgBits), offsetof(nvm_flash_cfg_t, RTKCfgBits));
 }
 
 template <typename T>
@@ -258,7 +261,7 @@ void InertialSenseROS::set_vector_flash_config(std::string param_name, uint32_t 
   }
   
   IS_.SendData(DID_FLASH_CONFIG, reinterpret_cast<uint8_t*>(&v), sizeof(v), offset);
-  flash_config_ = IS_.GetFlashConfig();
+  IS_.GetFlashConfig() = IS_.GetFlashConfig();
 }
 
 template <typename T>
@@ -311,7 +314,6 @@ void InertialSenseROS::INS1_callback(const ins_1_t * const msg)
 
 void InertialSenseROS::INS2_callback(const ins_2_t * const msg)
 {
-  insStatus_ = msg->insStatus;
   odom_msg.header.stamp = ros_time_from_week_and_tow(msg->week, msg->timeOfWeek);
   odom_msg.header.frame_id = frame_id_;
 

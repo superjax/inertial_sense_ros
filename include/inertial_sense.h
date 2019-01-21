@@ -49,8 +49,14 @@ public:
   void update();
 
 private:
+
+  void connect();
+  void set_navigation_dt_ms();
+  void configure_parameters();
+  void configure_rtk();
+  void configure_data_streams();
+  void configure_ascii_output();
   
-  void initialize_uINS();
   template<typename T> void set_vector_flash_config(std::string param_name, uint32_t size, uint32_t offset);
   template<typename T>  void set_flash_config(std::string param_name, uint32_t offset, T def);
   void get_flash_config();
@@ -60,8 +66,6 @@ private:
   std::string port_;
   int baudrate_;
   bool initialized_;
-
-  uint32_t insStatus_; // Current Status of INS estimator
 
   std::string frame_id_;
 
@@ -103,8 +107,6 @@ private:
   ros_stream_t dt_vel_;
   void preint_IMU_callback(const preintegrated_imu_t * const msg);
   
-  void bad_data_callback(const uint8_t* buf);
-
   ros::Publisher strobe_pub_;
   void strobe_in_time_callback(const strobe_in_time_t * const msg);
 
@@ -175,7 +177,5 @@ private:
 
   // Connection to the uINS
   InertialSense IS_;
-  dev_info_t dev_info_;
-  nvm_flash_cfg_t flash_config_;
 };
 
