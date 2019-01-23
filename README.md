@@ -127,7 +127,7 @@ Topics are enabled and disabled using parameters.  By default, only the `ins` to
   - Makes the connected uINS a RTK base station and enables the publishing of corrections
 * `~dual_GNSS` (bool, default: false)
   - Uses both GPS antennas in a dual-GNSS configuration
-* `~RTK_server_IP` (string, default: 172.0.0.1)
+* `~RTK_server_IP` (string, default: 127.0.0.1)
   - If operating as base, attempts to create a TCP port on this IP for base corrections, if rover, connects to this IP for corrections.
 * `~RTK_server_port` (int, default: 7777)
   - If operating as base, creates a TCP connection at this port for base corrections, if rover, connects to this port for corrections.

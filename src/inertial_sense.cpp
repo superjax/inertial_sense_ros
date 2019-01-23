@@ -33,6 +33,7 @@ InertialSenseROS::InertialSenseROS() :
   configure_parameters();
   configure_data_streams();
   configure_ascii_output();
+  configure_rtk();
 
   initialized_ = true;
 }

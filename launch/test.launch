@@ -2,7 +2,7 @@
 	<rosparam subst_value="True">
 
     inertial_sense_node: { port: "/dev/ttyUSB0",
-                           baud: 3000000,
+                           baud: 921600,
                            navigation_dt_ms: 10,
                            stream_INS: true,
                            stream_IMU: false,
