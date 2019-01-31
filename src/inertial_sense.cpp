@@ -707,10 +707,19 @@ void InertialSenseROS::wheel_enc_callback(const sensor_msgs::JointStateConstPtr 
 {
   wheel_encoder_t wheel_enc_msg;
   wheel_enc_msg.timeOfWeekMs = tow_from_ros_time(msg->header.stamp);
+  wheel_enc_msg.status = 0;
   wheel_enc_msg.theta_l = msg->position[0];
   wheel_enc_msg.theta_r = msg->position[1];
   wheel_enc_msg.omega_l = msg->velocity[0];
   wheel_enc_msg.omega_r = msg->velocity[1];
+#if 0
+  ROS_INFO("WHEEL: %13d %8.3f %8.3f %8.1f %8.1f", 
+    wheel_enc_msg.timeOfWeekMs,
+    wheel_enc_msg.theta_l,
+    wheel_enc_msg.theta_r,
+    wheel_enc_msg.omega_l,
+    wheel_enc_msg.omega_r);
+#endif
   IS_.SendData(DID_WHEEL_ENCODER, reinterpret_cast<uint8_t*>(&wheel_enc_msg), sizeof(wheel_encoder_t), 0);
 }
 
@@ -791,7 +800,7 @@ ros::Time InertialSenseROS::ros_time_from_tow(const double tow)
 
 double InertialSenseROS::tow_from_ros_time(const ros::Time &rt)
 {
-  return rt.sec - UNIX_TO_GPS_OFFSET - GPS_week_*7*24*3600 + rt.nsec*1e9;
+  return (double)(((uint64_t)rt.sec) - ((uint64_t)UNIX_TO_GPS_OFFSET) - ((uint64_t)GPS_week_*604800) + ((uint64_t)rt.nseci)*1e9);
 }
 
 
