@@ -712,7 +712,7 @@ void InertialSenseROS::wheel_enc_callback(const sensor_msgs::JointStateConstPtr 
   wheel_enc_msg.theta_r = msg->position[1];
   wheel_enc_msg.omega_l = msg->velocity[0];
   wheel_enc_msg.omega_r = msg->velocity[1];
-#if 1
+#if 0
   ROS_INFO("WHEEL: %14.4f %8.3f %8.3f %8.1f %8.1f", 
     wheel_enc_msg.timeOfWeekMs,
     wheel_enc_msg.theta_l,
