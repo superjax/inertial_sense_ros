@@ -800,7 +800,7 @@ ros::Time InertialSenseROS::ros_time_from_tow(const double tow)
 
 double InertialSenseROS::tow_from_ros_time(const ros::Time &rt)
 {
-  return rt.sec + rt.nsec*1.0e-9 - UNIX_TO_GPS_OFFSET - GPS_week_*604800;
+  return (rt.sec - UNIX_TO_GPS_OFFSET - GPS_week_*604800) + rt.nsec*1.0e-9;
 }
 
 
