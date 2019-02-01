@@ -40,8 +40,9 @@ InertialSenseROS::InertialSenseROS() :
     start_log();
   }
 
+  configure_rtk();
   configure_ascii_output();
-  configure_wheel_encoders();
+  configure_rtk();
 
   initialized_ = true;
 }
