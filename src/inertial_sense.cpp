@@ -32,6 +32,14 @@ InertialSenseROS::InertialSenseROS() :
 
   configure_parameters();
   configure_data_streams();
+
+  nh_private_.param<bool>("enable_log", log_enabled_, false);
+  if (log_enabled_)
+  {
+    start_log();
+  }
+
+  configure_rtk();
   configure_ascii_output();
   configure_rtk();
 
