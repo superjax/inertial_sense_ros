@@ -22,7 +22,8 @@ InertialSenseROS::InertialSenseROS() :
   set_navigation_dt_ms();
 
   /// Start Up ROS service servers
-  refLLA_set_srv_ = nh_.advertiseService("set_refLLA", &InertialSenseROS::set_current_position_as_refLLA, this);
+  refLLA_set_current_srv_ = nh_.advertiseService("set_refLLA_current", &InertialSenseROS::set_current_position_as_refLLA, this);
+  refLLA_set_value_srv_ = nh_.advertiseService("set_refLLA_value", &InertialSenseROS::set_refLLA_to_value, this);
   mag_cal_srv_ = nh_.advertiseService("single_axis_mag_cal", &InertialSenseROS::perform_mag_cal_srv_callback, this);
   multi_mag_cal_srv_ = nh_.advertiseService("multi_axis_mag_cal", &InertialSenseROS::perform_multi_mag_cal_srv_callback, this);
   firmware_update_srv_ = nh_.advertiseService("firmware_update", &InertialSenseROS::update_firmware_srv_callback, this);
@@ -663,6 +664,12 @@ bool InertialSenseROS::set_current_position_as_refLLA(std_srvs::Trigger::Request
   IS_.SendData(DID_FLASH_CONFIG, reinterpret_cast<uint8_t*>(&lla_), sizeof(lla_), offsetof(nvm_flash_cfg_t, refLla));
 }
 
+bool InertialSenseROS::set_refLLA_to_value(inertial_sense::refLLAUpdate::Request &req, inertial_sense::refLLAUpdate::Response &res)
+{
+  res.success = true;
+  IS_.SendData(DID_FLASH_CONFIG, reinterpret_cast<uint8_t*>(&req.lla), sizeof(req.lla), offsetof(nvm_flash_cfg_t, refLla));
+  ROS_INFO("refLLA Updated");
+}
 bool InertialSenseROS::perform_mag_cal_srv_callback(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res)
 {
   (void)req;

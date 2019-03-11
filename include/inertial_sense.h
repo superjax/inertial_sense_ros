@@ -18,6 +18,7 @@
 #include "inertial_sense/GPSInfo.h"
 #include "inertial_sense/PreIntIMU.h"
 #include "inertial_sense/FirmwareUpdate.h"
+#include "inertial_sense/refLLAUpdate.h"
 #include "inertial_sense/RTKRel.h"
 #include "inertial_sense/RTKInfo.h"
 #include "inertial_sense/GNSSEphemeris.h"
@@ -117,8 +118,10 @@ private:
   ros::ServiceServer mag_cal_srv_;
   ros::ServiceServer multi_mag_cal_srv_;
   ros::ServiceServer firmware_update_srv_;
-  ros::ServiceServer refLLA_set_srv_;
+  ros::ServiceServer refLLA_set_current_srv_;
+  ros::ServiceServer refLLA_set_value_srv_;
   bool set_current_position_as_refLLA(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response & res);
+  bool set_refLLA_to_value(inertial_sense::refLLAUpdate::Request &req, inertial_sense::refLLAUpdate::Response &res);
   bool perform_mag_cal_srv_callback(std_srvs::Trigger::Request & req, std_srvs::Trigger::Response & res);
   bool perform_multi_mag_cal_srv_callback(std_srvs::Trigger::Request & req, std_srvs::Trigger::Response & res);
   bool update_firmware_srv_callback(inertial_sense::FirmwareUpdate::Request & req, inertial_sense::FirmwareUpdate::Response & res);
