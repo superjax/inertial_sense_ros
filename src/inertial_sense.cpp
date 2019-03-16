@@ -83,7 +83,7 @@ void InertialSenseROS::configure_data_streams()
   nh_private_.param<bool>("stream_GPS_raw", GPS_eph_.enabled, false);
   if (GPS_obs_.enabled)
   {
-    GPS_obs_.pub = nh_.advertise<inertial_sense::GNSSObservation>("gps/obs", 50);
+    GPS_obs_.pub = nh_.advertise<inertial_sense::GNSSObsVec>("gps/obs", 50);
     GPS_eph_.pub = nh_.advertise<inertial_sense::GNSSEphemeris>("gps/eph", 50);
     GPS_eph_.pub2 = nh_.advertise<inertial_sense::GlonassEphemeris>("gps/geph", 50);
     SET_CALLBACK(DID_GPS1_RAW, gps_raw_t, GPS_raw_callback);
@@ -554,8 +554,7 @@ void InertialSenseROS::GPS_raw_callback(const gps_raw_t * const msg)
   switch(msg->dataType)
   {
   case raw_data_type_observation:
-    for (int i = 0; i < msg->obsCount; i++)
-      GPS_obs_callback((obsd_t*)&msg->data.obs[i]);
+    GPS_obs_callback((obs_t*)&msg->data);
     break;
 
   case raw_data_type_ephemeris:
@@ -571,22 +570,26 @@ void InertialSenseROS::GPS_raw_callback(const gps_raw_t * const msg)
   }
 }
 
-void InertialSenseROS::GPS_obs_callback(const obsd_t * const msg)
+void InertialSenseROS::GPS_obs_callback(const obs_t * const msg)
 {
-  inertial_sense::GNSSObservation obs;
-  obs.time.time = msg->time.time;
-  obs.time.sec = msg->time.sec;
-  obs.sat = msg->sat;
-  obs.rcv = msg->rcv;
-  obs.SNR = msg->SNR[0];
-  obs.LLI = msg->LLI[0];
-  obs.code = msg->code[0];
-  obs.qualL = msg->qualL[0];
-  obs.qualP = msg->qualP[0];
-  obs.L = msg->L[0];
-  obs.P = msg->P[0];
-  obs.D = msg->D[0];
-  GPS_obs_.pub.publish(obs);
+  inertial_sense::GNSSObsVec out;
+  out.obs.resize(msg->n);
+  for (int i = 0; i < msg->n; i++)
+  {
+      out.obs[i].time.time = msg->data[i].time.time;
+      out.obs[i].time.sec = msg->data[i].time.sec;
+      out.obs[i].sat = msg->data[i].sat;
+      out.obs[i].rcv = msg->data[i].rcv;
+      out.obs[i].SNR = msg->data[i].SNR[0];
+      out.obs[i].LLI = msg->data[i].LLI[0];
+      out.obs[i].code = msg->data[i].code[0];
+      out.obs[i].qualL = msg->data[i].qualL[0];
+      out.obs[i].qualP = msg->data[i].qualP[0];
+      out.obs[i].L = msg->data[i].L[0];
+      out.obs[i].P = msg->data[i].P[0];
+      out.obs[i].D = msg->data[i].D[0];
+  }
+  GPS_obs_.pub.publish(out);
 }
 
 void InertialSenseROS::GPS_eph_callback(const eph_t * const msg)
