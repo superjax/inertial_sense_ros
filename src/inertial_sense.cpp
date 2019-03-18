@@ -43,7 +43,7 @@ InertialSenseROS::InertialSenseROS() :
 
   configure_ascii_output();
   configure_rtk();
-//  configure_wheel();
+
   
   initialized_ = true;
 }
@@ -200,12 +200,6 @@ void InertialSenseROS::configure_parameters()
   set_flash_config<int>("dynamic_model", offsetof(nvm_flash_cfg_t, insDynModel), 8);
   set_flash_config<int>("ser1_baud_rate", offsetof(nvm_flash_cfg_t, ser1BaudRate), 921600);
 }
-
-//void InertialSenseROS::configure_wheel()
-//{
-//	nh_private_.param<float>("wheelConfig", wheelConfig.bits, 3);
-//	set_flash_config<float>("wheelConfig", offsetof(nvm_flash_cfg_t, wheelConfig.bits), 3;
-//}
 
 void InertialSenseROS::configure_rtk()
 {
