@@ -581,6 +581,7 @@ void InertialSenseROS::GPS_obs_callback(const obsd_t * const msg, int nObs)
   for (int i = 0; i < nObs; i++)
   {
       inertial_sense::GNSSObservation obs;
+      obs.header.stamp = ros_time_from_gtime(obs_Vec_.obs[0].time.time, obs_Vec_.obs[0].time.sec);
       obs.time.time = msg[i].time.time;
       obs.time.sec = msg[i].time.sec;
       obs.sat = msg[i].sat;
@@ -609,6 +610,7 @@ void InertialSenseROS::GPS_obs_bundle_timer_callback(const ros::TimerEvent &e)
         obs_Vec_.time = obs_Vec_.obs[0].time;
         GPS_obs_.pub.publish(obs_Vec_);
         obs_Vec_.obs.clear();
+        cout << "dt" << (obs_Vec_.header.stamp - ros::Time::now()) << endl;
     }
 }
 
@@ -835,7 +837,7 @@ double InertialSenseROS::tow_from_ros_time(const ros::Time &rt)
 ros::Time InertialSenseROS::ros_time_from_gtime(const uint64_t sec, double subsec)
 {
     ros::Time out;
-    out.sec = sec;
+    out.sec = sec - LEAP_SECONDS;
     out.nsec = subsec * 1e9;
     return out;
 }
