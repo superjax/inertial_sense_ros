@@ -43,7 +43,8 @@ InertialSenseROS::InertialSenseROS() :
 
   configure_ascii_output();
   configure_rtk();
-
+  configure_wheel();
+  
   initialized_ = true;
 }
 
@@ -199,6 +200,10 @@ void InertialSenseROS::configure_parameters()
   set_flash_config<int>("ser1_baud_rate", offsetof(nvm_flash_cfg_t, ser1BaudRate), 921600);
 }
 
+void InertialSenseROS::configure_wheel()
+{
+	set_flash_config<float>("wheelconfig", offsetof(nvm_flash_cfg_t, wheelConfig.bits), 3;
+}
 
 void InertialSenseROS::configure_rtk()
 {
