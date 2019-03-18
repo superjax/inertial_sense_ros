@@ -43,7 +43,7 @@ InertialSenseROS::InertialSenseROS() :
 
   configure_ascii_output();
   configure_rtk();
-  configure_wheel();
+//  configure_wheel();
   
   initialized_ = true;
 }
@@ -201,11 +201,11 @@ void InertialSenseROS::configure_parameters()
   set_flash_config<int>("ser1_baud_rate", offsetof(nvm_flash_cfg_t, ser1BaudRate), 921600);
 }
 
-void InertialSenseROS::configure_wheel()
-{
-	nh_private_.param<float>("wheelConfig", wheelConfig.bits, 3);
-	set_flash_config<float>("wheelConfig", offsetof(nvm_flash_cfg_t, wheelConfig.bits), 3;
-}
+//void InertialSenseROS::configure_wheel()
+//{
+//	nh_private_.param<float>("wheelConfig", wheelConfig.bits, 3);
+//	set_flash_config<float>("wheelConfig", offsetof(nvm_flash_cfg_t, wheelConfig.bits), 3;
+//}
 
 void InertialSenseROS::configure_rtk()
 {
@@ -749,14 +749,6 @@ void InertialSenseROS::wheel_enc_callback(const sensor_msgs::JointStateConstPtr 
   wheel_enc_msg.theta_r = msg->position[1];
   wheel_enc_msg.omega_l = msg->velocity[0];
   wheel_enc_msg.omega_r = msg->velocity[1];
-#if 0
-  ROS_INFO("WHEEL: %14.4f %8.3f %8.3f %8.1f %8.1f", 
-    wheel_enc_msg.timeOfWeekMs,
-    wheel_enc_msg.theta_l,
-    wheel_enc_msg.theta_r,
-    wheel_enc_msg.omega_l,
-    wheel_enc_msg.omega_r);
-#endif
   IS_.SendData(DID_WHEEL_ENCODER, reinterpret_cast<uint8_t*>(&wheel_enc_msg), sizeof(wheel_encoder_t), 0);
 }
 

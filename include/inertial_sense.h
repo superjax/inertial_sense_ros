@@ -132,6 +132,7 @@ private:
   bool update_firmware_srv_callback(inertial_sense::FirmwareUpdate::Request & req, inertial_sense::FirmwareUpdate::Response & res);
   void wheel_enc_callback(const sensor_msgs::JointStateConstPtr& msg);
   void configure_wheel_encoders();
+//  void configure_wheel();
   
   void publishGPS();
 
