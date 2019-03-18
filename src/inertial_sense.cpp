@@ -202,7 +202,8 @@ void InertialSenseROS::configure_parameters()
 
 void InertialSenseROS::configure_wheel()
 {
-	set_flash_config<float>("wheelconfig", offsetof(nvm_flash_cfg_t, wheelConfig.bits), 3;
+	nh_private_.param<float>("wheelConfig", wheelConfig.bits, 3);
+	set_flash_config<float>("wheelConfig", offsetof(nvm_flash_cfg_t, wheelConfig.bits), 3;
 }
 
 void InertialSenseROS::configure_rtk()
