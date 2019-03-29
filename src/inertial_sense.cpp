@@ -28,8 +28,7 @@ InertialSenseROS::InertialSenseROS() :
   multi_mag_cal_srv_ = nh_.advertiseService("multi_axis_mag_cal", &InertialSenseROS::perform_multi_mag_cal_srv_callback, this);
   firmware_update_srv_ = nh_.advertiseService("firmware_update", &InertialSenseROS::update_firmware_srv_callback, this);
   wheel_enc_sub_ = nh_.subscribe("joint_states", 20, &InertialSenseROS::wheel_enc_callback, this);
-  armadillo_pose_sub_ = nh_.subscribe("armadillo_pose", 20, &InertialSenseROS::armadillo_pose_callback, this);
-    
+  
   // Stop all broadcasts
   IS_.StopBroadcasts();
 
@@ -737,27 +736,6 @@ bool InertialSenseROS::update_firmware_srv_callback(inertial_sense::FirmwareUpda
   return true;
 }
 
-void InertialSenseROS::armadillo_pose_callback(const geometry_msgs::PoseWithCovarianceStamped &msg) //TODO: Should this be a pointer message? (PoseWithCovariancePtr)
-{
-    pos_measurement_t pos_msg;
-
-    pos_msg.timeOfWeek = tow_from_ros_time(msg.header.stamp);
-    pos_msg.ecef[0] = msg.pose.pose.position.x;
-    pos_msg.ecef[1] = msg.pose.pose.position.y;
-    pos_msg.ecef[2] = msg.pose.pose.position.z;
-    pos_msg.psi = msg.pose.pose.orientation.z; //Using z field of quaternion data set as yaw euler angle
-    pos_msg.accuracyCovUD[0] =msg.pose.covariance[0];
-    pos_msg.accuracyCovUD[1] =msg.pose.covariance[1];
-    pos_msg.accuracyCovUD[2] =msg.pose.covariance[2];
-    pos_msg.accuracyCovUD[3] =msg.pose.covariance[3];
-    pos_msg.accuracyCovUD[4] =msg.pose.covariance[4];
-    pos_msg.accuracyCovUD[5] =msg.pose.covariance[5];// Matrix accuracyCovUD Described below
-    // 0 1 2
-    // _ 3 4
-    // _ _ 5
-
-  IS_.SendData(DID_POSITION_MEASUREMENT, reinterpret_cast<uint8_t*>(&pos_msg), sizeof(pos_msg), 0);
-}
 void InertialSenseROS::wheel_enc_callback(const sensor_msgs::JointStateConstPtr &msg)
 {
   wheel_encoder_t wheel_enc_msg;
@@ -772,13 +750,13 @@ void InertialSenseROS::wheel_enc_callback(const sensor_msgs::JointStateConstPtr 
 
 void InertialSenseROS::configure_wheel_encoders()
 {
-  wheel_config_t wheel_encoder_config;
+  wheel_encoder_config_t wheel_encoder_config;
   std::vector<double> q_i2l, t_i2l;
   nh_private_.getParam("q_wheel_enc", q_i2l);
   nh_private_.getParam("t_wheel_enc", t_i2l);
   nh_private_.getParam("diameter", wheel_encoder_config.diameter);
   nh_private_.getParam("distance", wheel_encoder_config.distance);
-  IS_.SendData(DID_WHEEL_CONFIG, reinterpret_cast<uint8_t*>(&wheel_encoder_config), sizeof(wheel_config_t), 0);
+  IS_.SendData(DID_WHEEL_ENCODER_CONFIG, reinterpret_cast<uint8_t*>(&wheel_encoder_config), sizeof(wheel_encoder_config_t), 0);
 }
 
 ros::Time InertialSenseROS::ros_time_from_week_and_tow(const uint32_t week, const double timeOfWeek)
