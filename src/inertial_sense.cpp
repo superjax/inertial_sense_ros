@@ -575,7 +575,7 @@ void InertialSenseROS::GPS_obs_callback(const obsd_t * const msg, int nObs)
   for (int i = 0; i < nObs; i++)
   {
       inertial_sense::GNSSObservation obs;
-      obs.header.stamp = ros_time_from_gtime(obs_Vec_.obs[0].time.time, obs_Vec_.obs[0].time.sec);
+      obs.header.stamp = ros_time_from_gtime(msg[i].time.time, msg[i].time.sec);
       obs.time.time = msg[i].time.time;
       obs.time.sec = msg[i].time.sec;
       obs.sat = msg[i].sat;
