@@ -5,16 +5,6 @@
 #include <tf/tf.h>
 #include <ros/console.h>
 
-#define SET_CALLBACK(DID, __type, __cb_fun) \
-    IS_.BroadcastBinaryData(DID, 1, \
-    [this](InertialSense*i, p_data_t* data, int pHandle)\
-    { \
-        /*ROS_INFO("Got message %d", DID); */\
-        this->__cb_fun(reinterpret_cast<__type*>(data->buf));\
-    })
-
-
-
 InertialSenseROS::InertialSenseROS() :
   nh_(), nh_private_("~"), initialized_(false)
 {
@@ -27,24 +17,20 @@ InertialSenseROS::InertialSenseROS() :
   mag_cal_srv_ = nh_.advertiseService("single_axis_mag_cal", &InertialSenseROS::perform_mag_cal_srv_callback, this);
   multi_mag_cal_srv_ = nh_.advertiseService("multi_axis_mag_cal", &InertialSenseROS::perform_multi_mag_cal_srv_callback, this);
   firmware_update_srv_ = nh_.advertiseService("firmware_update", &InertialSenseROS::update_firmware_srv_callback, this);
-  wheel_enc_sub_ = nh_.subscribe("joint_states", 20, &InertialSenseROS::wheel_enc_callback, this);
-  
-  // Stop all broadcasts
-  IS_.StopBroadcasts();
 
   configure_parameters();
+  configure_rtk();
   configure_data_streams();
 
   nh_private_.param<bool>("enable_log", log_enabled_, false);
   if (log_enabled_)
   {
-    start_log();
+    start_log();//start log should always happen last, does not all stop all message streams.
   }
 
-  configure_ascii_output();
-  configure_rtk();
 
-  
+//  configure_ascii_output(); //does not work right now
+
   initialized_ = true;
 }
 
@@ -54,6 +40,8 @@ void InertialSenseROS::configure_data_streams()
   SET_CALLBACK(DID_GPS1_POS, gps_pos_t, GPS_pos_callback); // we always need GPS for Fix status
   SET_CALLBACK(DID_GPS1_VEL, gps_vel_t, GPS_vel_callback); // we always need GPS for Fix status
   SET_CALLBACK(DID_STROBE_IN_TIME, strobe_in_time_t, strobe_in_time_callback); // we always want the strobe
+  
+
   nh_private_.param<bool>("stream_INS", INS_.enabled, true);
   if (INS_.enabled)
   {
@@ -189,14 +177,14 @@ void InertialSenseROS::set_navigation_dt_ms()
 
 void InertialSenseROS::configure_parameters()
 {
-  set_vector_flash_config<float>("INS_rpy", 3, offsetof(nvm_flash_cfg_t, insRotation));
+  set_vector_flash_config<float>("INS_rpy_radians", 3, offsetof(nvm_flash_cfg_t, insRotation));
   set_vector_flash_config<float>("INS_xyz", 3, offsetof(nvm_flash_cfg_t, insOffset));
   set_vector_flash_config<float>("GPS_ant1_xyz", 3, offsetof(nvm_flash_cfg_t, gps1AntOffset));
   set_vector_flash_config<float>("GPS_ant2_xyz", 3, offsetof(nvm_flash_cfg_t, gps2AntOffset));
   set_vector_flash_config<double>("GPS_ref_lla", 3, offsetof(nvm_flash_cfg_t, refLla));
 
-  set_flash_config<float>("inclination", offsetof(nvm_flash_cfg_t, magInclination), 1.14878541071f);
-  set_flash_config<float>("declination", offsetof(nvm_flash_cfg_t, magDeclination), 0.20007290992f);
+  set_flash_config<float>("inclination", offsetof(nvm_flash_cfg_t, magInclination), 0.0f);
+  set_flash_config<float>("declination", offsetof(nvm_flash_cfg_t, magDeclination), 0.0f);
   set_flash_config<int>("dynamic_model", offsetof(nvm_flash_cfg_t, insDynModel), 8);
   set_flash_config<int>("ser1_baud_rate", offsetof(nvm_flash_cfg_t, ser1BaudRate), 921600);
 }
@@ -535,11 +523,11 @@ void InertialSenseROS::RTK_Rel_callback(const gps_rtk_rel_t* const msg)
     rtk_rel.header.stamp = ros_time_from_week_and_tow(GPS_week_, msg->timeOfWeekMs/1000.0);
     rtk_rel.differential_age = msg->differentialAge;
     rtk_rel.ar_ratio = msg->arRatio;
-    rtk_rel.vector_to_base.x = msg->vectorToBase[0];
-    rtk_rel.vector_to_base.y = msg->vectorToBase[1];
-    rtk_rel.vector_to_base.z = msg->vectorToBase[2];
-    rtk_rel.distance_to_base = msg->distanceToBase;
-    rtk_rel.heading_to_base = msg->headingToBase;
+    rtk_rel.vector_base_to_rover.x = msg->baseToRoverVector[0];
+    rtk_rel.vector_base_to_rover.y = msg->baseToRoverVector[1];
+    rtk_rel.vector_base_to_rover.z = msg->baseToRoverVector[2];
+    rtk_rel.distance_base_to_rover = msg->baseToRoverDistance;
+    rtk_rel.heading_base_to_rover = msg->baseToRoverHeading;
     RTK_.pub2.publish(rtk_rel);
   }
 }
@@ -604,7 +592,7 @@ void InertialSenseROS::GPS_obs_bundle_timer_callback(const ros::TimerEvent &e)
         obs_Vec_.time = obs_Vec_.obs[0].time;
         GPS_obs_.pub.publish(obs_Vec_);
         obs_Vec_.obs.clear();
-        cout << "dt" << (obs_Vec_.header.stamp - ros::Time::now()) << endl;
+//        cout << "dt" << (obs_Vec_.header.stamp - ros::Time::now()) << endl;
     }
 }
 
@@ -736,28 +724,6 @@ bool InertialSenseROS::update_firmware_srv_callback(inertial_sense::FirmwareUpda
   return true;
 }
 
-void InertialSenseROS::wheel_enc_callback(const sensor_msgs::JointStateConstPtr &msg)
-{
-  wheel_encoder_t wheel_enc_msg;
-  wheel_enc_msg.timeOfWeek = tow_from_ros_time(msg->header.stamp);
-  wheel_enc_msg.status = 0;
-  wheel_enc_msg.theta_l = msg->position[0];
-  wheel_enc_msg.theta_r = msg->position[1];
-  wheel_enc_msg.omega_l = msg->velocity[0];
-  wheel_enc_msg.omega_r = msg->velocity[1];
-  IS_.SendData(DID_WHEEL_ENCODER, reinterpret_cast<uint8_t*>(&wheel_enc_msg), sizeof(wheel_encoder_t), 0);
-}
-
-void InertialSenseROS::configure_wheel_encoders()
-{
-  wheel_encoder_config_t wheel_encoder_config;
-  std::vector<double> q_i2l, t_i2l;
-  nh_private_.getParam("q_wheel_enc", q_i2l);
-  nh_private_.getParam("t_wheel_enc", t_i2l);
-  nh_private_.getParam("diameter", wheel_encoder_config.diameter);
-  nh_private_.getParam("distance", wheel_encoder_config.distance);
-  IS_.SendData(DID_WHEEL_ENCODER_CONFIG, reinterpret_cast<uint8_t*>(&wheel_encoder_config), sizeof(wheel_encoder_config_t), 0);
-}
 
 ros::Time InertialSenseROS::ros_time_from_week_and_tow(const uint32_t week, const double timeOfWeek)
 {
@@ -836,15 +802,3 @@ ros::Time InertialSenseROS::ros_time_from_gtime(const uint64_t sec, double subse
     return out;
 }
 
-
-int main(int argc, char**argv)
-{
-  ros::init(argc, argv, "inertial_sense_node");
-  InertialSenseROS thing;
-  while (ros::ok())
-  {
-    ros::spinOnce();
-    thing.update();
-  }
-  return 0;
-}
