@@ -43,19 +43,23 @@ generate_messages(
 
 catkin_package(
     INCLUDE_DIRS include
+    LIBRARIES inertial_sense_ros
     CATKIN_DEPENDS roscpp sensor_msgs geometry_msgs
 )
 
 include_directories(include
   ${catkin_INCLUDE_DIRS}
-  lib/InertialSenseSDK/src
+  lib/InertialSenseSDK/src #This line of CMakeList.txt stays in .external file to reference submodule
 )
 
 add_subdirectory(lib/InertialSenseSDK)
 
-add_executable(inertial_sense_node
+add_library(inertial_sense_ros
         src/inertial_sense.cpp
-        include/inertial_sense.h
 )
-target_link_libraries(inertial_sense_node InertialSense ${catkin_LIBRARIES})
-add_dependencies(inertial_sense_node inertial_sense_generate_messages_cpp)
+target_link_libraries(inertial_sense_ros InertialSense ${catkin_LIBRARIES} pthread)
+target_include_directories(inertial_sense_ros PUBLIC include lib/InertialSenseSDK/src)
+add_dependencies(inertial_sense_ros inertial_sense_generate_messages_cpp)
+
+add_executable(inertial_sense_node src/inertial_sense_node.cpp)
+target_link_libraries(inertial_sense_node inertial_sense_ros ${catkin_LIBRARIES})
