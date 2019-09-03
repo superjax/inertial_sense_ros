@@ -27,6 +27,7 @@ add_message_files(
   GNSSEphemeris.msg
   GNSSObservation.msg
   GNSSObsVec.msg
+  INL2States.msg
 )
 
 add_service_files(
