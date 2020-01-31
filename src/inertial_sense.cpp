@@ -97,7 +97,7 @@ void InertialSenseROS::configure_data_streams()
   {
     mag_.pub = nh_.advertise<sensor_msgs::MagneticField>("mag", 1);
     //    mag_.pub2 = nh_.advertise<sensor_msgs::MagneticField>("mag2", 1);
-    SET_CALLBACK(DID_MAGNETOMETER_1, magnetometer_t, mag_callback,1);
+    SET_CALLBACK(DID_MAGNETOMETER, magnetometer_t, mag_callback,1);
   }
 
   // Set up the barometer ROS stream

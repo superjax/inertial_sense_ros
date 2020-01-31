@@ -30,14 +30,16 @@
 #include "std_msgs/Header.h"
 #include "geometry_msgs/Vector3Stamped.h"
 #include "geometry_msgs/PoseWithCovarianceStamped.h"
+#include "diagnostic_msgs/DiagnosticArray.h"
+#include <tf/transform_broadcaster.h>
 //#include "geometry/xform.h"
 
 # define GPS_UNIX_OFFSET 315964800 // GPS time started on 6/1/1980 while UNIX time started 1/1/1970 this is the difference between those in seconds
 # define LEAP_SECONDS 18 // GPS time does not have leap seconds, UNIX does (as of 1/1/2017 - next one is probably in 2020 sometime unless there is some crazy earthquake or nuclear blast)
 # define UNIX_TO_GPS_OFFSET (GPS_UNIX_OFFSET - LEAP_SECONDS)
 
-#define SET_CALLBACK(DID, __type, __cb_fun) \
-    IS_.BroadcastBinaryData(DID, 1, \
+#define SET_CALLBACK(DID, __type, __cb_fun, __periodmultiple) \
+    IS_.BroadcastBinaryData(DID, __periodmultiple, \
     [this](InertialSense*i, p_data_t* data, int pHandle)\
     { \
        /* ROS_INFO("Got message %d", DID);*/\
@@ -71,7 +73,7 @@ public:
   void start_log();
   
   template<typename T> void set_vector_flash_config(std::string param_name, uint32_t size, uint32_t offset);
-  template<typename T>  void set_flash_config(std::string param_name, uint32_t offset, T def);
+  template<typename T>  void set_flash_config(std::string param_name, uint32_t offset, T def) __attribute__ ((optimize(0)));
   void get_flash_config();
   void reset_device();
   void flash_config_callback(const nvm_flash_cfg_t* const msg);
@@ -95,6 +97,16 @@ public:
   void INS1_callback(const ins_1_t* const msg);
   void INS2_callback(const ins_2_t* const msg);
 //  void INS_variance_callback(const inl2_variance_t* const msg);
+
+  tf::TransformBroadcaster br;
+  bool publishTf;
+  tf::Transform transform;
+  int LTCF;
+  enum
+  {
+    NED,
+    ENU
+  }ltcf;
 
   ros_stream_t IMU_;
   void IMU_callback(const dual_imu_t* const msg);
@@ -127,6 +139,11 @@ public:
   
   ros::Publisher strobe_pub_;
   void strobe_in_time_callback(const strobe_in_time_t * const msg);
+
+  ros_stream_t diagnostics_;
+  void diagnostics_callback(const ros::TimerEvent& event);
+  ros::Timer diagnostics_timer_;
+  float diagnostic_ar_ratio_, diagnostic_differential_age_, diagnostic_heading_base_to_rover_;
 
   ros::ServiceServer mag_cal_srv_;
   ros::ServiceServer multi_mag_cal_srv_;
@@ -190,9 +207,10 @@ public:
 
   // Data to hold on to in between callbacks
   double lla_[3];
+  double ecef_[3];
   sensor_msgs::Imu imu1_msg, imu2_msg;
   nav_msgs::Odometry odom_msg;
-  inertial_sense::GPS gps_msg;
+  inertial_sense::GPS gps_msg; 
   geometry_msgs::Vector3Stamped gps_velEcef;
   inertial_sense::GPSInfo gps_info_msg;
 
@@ -202,4 +220,3 @@ public:
   // Connection to the uINS
   InertialSense IS_;
 };
-
