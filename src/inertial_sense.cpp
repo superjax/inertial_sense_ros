@@ -97,7 +97,7 @@ void InertialSenseROS::configure_data_streams()
   {
     mag_.pub = nh_.advertise<sensor_msgs::MagneticField>("mag", 1);
     //    mag_.pub2 = nh_.advertise<sensor_msgs::MagneticField>("mag2", 1);
-    SET_CALLBACK(DID_MAGNETOMETER, magnetometer_t, mag_callback,1);
+    SET_CALLBACK(DID_MAGNETOMETER_1, magnetometer_t, mag_callback,1);
   }
 
   // Set up the barometer ROS stream
@@ -201,8 +201,9 @@ void InertialSenseROS::configure_parameters()
 
 void InertialSenseROS::configure_rtk()
 {
-  bool RTK_rover, RTK_base, dual_GNSS;
+  bool RTK_rover, RTK_rover_radio_enable, RTK_base, dual_GNSS;
   nh_private_.param<bool>("RTK_rover", RTK_rover, false);
+  nh_private_.param<bool>("RTK_rover_radio_enable", RTK_rover_radio_enable, false);
   nh_private_.param<bool>("RTK_base", RTK_base, false);
   nh_private_.param<bool>("dual_GNSS", dual_GNSS, false);
   std::string RTK_server_IP, RTK_correction_type;
@@ -219,34 +220,46 @@ void InertialSenseROS::configure_rtk()
     RTK_rover = false;
     ROS_INFO("InertialSense: Configured as dual GNSS (compassing)");
     RTK_state_ = DUAL_GNSS;
-    RTKCfgBits |= RTK_CFG_BITS_COMPASSING;
-    SET_CALLBACK(DID_GPS1_RTK_MISC, gps_rtk_misc_t, RTK_Misc_callback,1);
-    SET_CALLBACK(DID_GPS1_RTK_REL, gps_rtk_rel_t, RTK_Rel_callback,1);
+    RTKCfgBits |= RTK_CFG_BITS_ROVER_MODE_RTK_COMPASSING;
+    SET_CALLBACK(DID_GPS2_RTK_CMP_MISC, gps_rtk_misc_t, RTK_Misc_callback,1);
+    SET_CALLBACK(DID_GPS2_RTK_CMP_REL, gps_rtk_rel_t, RTK_Rel_callback,1);
     RTK_.enabled = true;
     RTK_.pub = nh_.advertise<inertial_sense::RTKInfo>("RTK/info", 10);
     RTK_.pub2 = nh_.advertise<inertial_sense::RTKRel>("RTK/rel", 10);
   }
 
-  if (RTK_rover)
+  if (RTK_rover_radio_enable)
+  {
+    RTK_base = false;
+    ROS_INFO("InertialSense: Configured as RTK Rover with radio enabled");
+    RTK_state_ = RTK_ROVER;
+    RTKCfgBits |= RTK_CFG_BITS_ROVER_MODE_RTK_POSITIONING_F9P;
+
+    SET_CALLBACK(DID_GPS1_RTK_POS_MISC, gps_rtk_misc_t, RTK_Misc_callback,1);
+    SET_CALLBACK(DID_GPS1_RTK_POS_REL, gps_rtk_rel_t, RTK_Rel_callback,1);
+    RTK_.enabled = true;
+    RTK_.pub = nh_.advertise<inertial_sense::RTKInfo>("RTK/info", 10);
+    RTK_.pub2 = nh_.advertise<inertial_sense::RTKRel>("RTK/rel", 10);
+  }
+  else if (RTK_rover)
   {
     RTK_base = false;
     std::string RTK_connection =  RTK_correction_type + ":" + RTK_server_IP + ":" + std::to_string(RTK_server_port);
     ROS_INFO("InertialSense: Configured as RTK Rover");
     RTK_state_ = RTK_ROVER;
-    RTKCfgBits |= RTK_CFG_BITS_GPS1_RTK_ROVER;
+    RTKCfgBits |= RTK_CFG_BITS_ROVER_MODE_RTK_POSITIONING_F9P;
 
     if (IS_.OpenServerConnection(RTK_connection))
       ROS_INFO_STREAM("Successfully connected to " << RTK_connection << " RTK server");
     else
       ROS_ERROR_STREAM("Failed to connect to base server at " << RTK_connection);
 
-    SET_CALLBACK(DID_GPS1_RTK_MISC, gps_rtk_misc_t, RTK_Misc_callback,1);
-    SET_CALLBACK(DID_GPS1_RTK_REL, gps_rtk_rel_t, RTK_Rel_callback,1);
+    SET_CALLBACK(DID_GPS1_RTK_POS_MISC, gps_rtk_misc_t, RTK_Misc_callback,1);
+    SET_CALLBACK(DID_GPS1_RTK_POS_REL, gps_rtk_rel_t, RTK_Rel_callback,1);
     RTK_.enabled = true;
     RTK_.pub = nh_.advertise<inertial_sense::RTKInfo>("RTK/info", 10);
     RTK_.pub2 = nh_.advertise<inertial_sense::RTKRel>("RTK/rel", 10);
   }
-
   else if (RTK_base)
   {
     std::string RTK_connection =  RTK_server_IP + ":" + std::to_string(RTK_server_port);
@@ -341,6 +354,11 @@ void InertialSenseROS::INS1_callback(const ins_1_t * const msg)
 
 void InertialSenseROS::INS2_callback(const ins_2_t * const msg)
 {
+  if (!(msg->hdwStatus&HDW_STATUS_GPS_TIME_OF_WEEK_VALID))
+  { // Don't run if msg->timeOfWeek is not valid
+    return;
+  }
+
   odom_msg.header.stamp = ros_time_from_week_and_tow(msg->week, msg->timeOfWeek);
   odom_msg.header.frame_id = frame_id_;
 
@@ -425,7 +443,7 @@ void InertialSenseROS::GPS_pos_callback(const gps_pos_t * const msg)
 {
   GPS_week_ = msg->week;
   GPS_towOffset_ = msg->towOffset;
-  if (GPS_.enabled)
+  if (GPS_.enabled && msg->status&GPS_STATUS_FLAGS_FIX_OK)
   {
     gps_msg.header.stamp = ros_time_from_week_and_tow(msg->week, msg->timeOfWeekMs/1e3);
     gps_msg.fix_type = msg->status & GPS_STATUS_FIX_MASK;
@@ -448,12 +466,12 @@ void InertialSenseROS::GPS_pos_callback(const gps_pos_t * const msg)
 
 void InertialSenseROS::GPS_vel_callback(const gps_vel_t * const msg)
 {
-	if (GPS_.enabled)
+	if (GPS_.enabled && GPS_towOffset_ > 0.001)
 	{
 		gps_velEcef.header.stamp = ros_time_from_week_and_tow(GPS_week_, msg->timeOfWeekMs/1e3);
-		gps_velEcef.vector.x = msg->velEcef[0];
-		gps_velEcef.vector.y = msg->velEcef[1];
-		gps_velEcef.vector.z = msg->velEcef[2];
+		gps_velEcef.vector.x = msg->vel[0];
+		gps_velEcef.vector.y = msg->vel[1];
+		gps_velEcef.vector.z = msg->vel[2];
 		publishGPS();
 	}
 }
@@ -478,14 +496,22 @@ void InertialSenseROS::strobe_in_time_callback(const strobe_in_time_t * const ms
   if (strobe_pub_.getTopic().empty())
     strobe_pub_ = nh_.advertise<std_msgs::Header>("strobe_time", 1);
   
+  if (GPS_towOffset_ > 0.001)
+  {
   std_msgs::Header strobe_msg;
   strobe_msg.stamp = ros_time_from_week_and_tow(msg->week, msg->timeOfWeekMs * 1e-3);
   strobe_pub_.publish(strobe_msg);
+}
 }
 
 
 void InertialSenseROS::GPS_info_callback(const gps_sat_t* const msg)
 {
+  if(GPS_towOffset_ < 0.001)
+  { // Wait for valid msg->timeOfWeekMs
+    return;
+  }
+
   gps_info_msg.header.stamp =ros_time_from_tow(msg->timeOfWeekMs/1e3);
   gps_info_msg.header.frame_id = frame_id_;
   gps_info_msg.num_sats = msg->numSats;
@@ -541,7 +567,7 @@ void InertialSenseROS::preint_IMU_callback(const preintegrated_imu_t * const msg
 
 void InertialSenseROS::RTK_Misc_callback(const gps_rtk_misc_t* const msg)
 {
-  if (RTK_.enabled)
+  if (RTK_.enabled && GPS_towOffset_ > 0.001)
   {
     inertial_sense::RTKInfo rtk_info;
     rtk_info.header.stamp = ros_time_from_week_and_tow(GPS_week_, msg->timeOfWeekMs/1000.0);
@@ -566,7 +592,7 @@ void InertialSenseROS::RTK_Misc_callback(const gps_rtk_misc_t* const msg)
 
 void InertialSenseROS::RTK_Rel_callback(const gps_rtk_rel_t* const msg)
 {
-  if (RTK_.enabled)
+  if (RTK_.enabled && GPS_towOffset_ > 0.001)
   {
     inertial_sense::RTKRel rtk_rel;
     rtk_rel.header.stamp = ros_time_from_week_and_tow(GPS_week_, msg->timeOfWeekMs/1000.0);
@@ -846,36 +872,32 @@ bool InertialSenseROS::set_refLLA_to_value(inertial_sense::refLLAUpdate::Request
       res.message = "Unable to update refLLA. Please try again.";
   }
 }
+
 bool InertialSenseROS::perform_mag_cal_srv_callback(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res)
 {
   (void)req;
     uint32_t single_axis_command = 2;
     IS_.SendData(DID_MAG_CAL, reinterpret_cast<uint8_t*>(&single_axis_command), sizeof(uint32_t), offsetof(mag_cal_t, recalCmd));
 
-
     is_comm_instance_t comm;
     uint8_t buffer[2048];
-    comm.buffer = buffer;
-    comm.bufferSize = sizeof(buffer);
-
-    is_comm_init(&comm);
-    uint8_t inByte;
+  is_comm_init(&comm, buffer, sizeof(buffer));
     serial_port_t* serialPort = IS_.GetSerialPort();
-    int count;
-    while ((count = serialPortReadCharTimeout(serialPort, &inByte, 20)) > 0)
+  uint8_t inByte;
+  int n;
+
+  while ((n = serialPortReadCharTimeout(serialPort, &inByte, 20)) > 0)
     {
-        switch (is_comm_parse(&comm, inByte))
+    // Search comm buffer for valid packets
+    if (is_comm_parse_byte(&comm, inByte) == _PTYPE_INERTIAL_SENSE_DATA && comm.dataHdr.id == DID_INS_1)
         {
-        case DID_INS_1:
-            ins_1_t* msg = (ins_1_t*)buffer;
+      ins_1_t* msg = (ins_1_t*)(comm.dataPtr + comm.dataHdr.offset);
             if (msg->insStatus & 0x00400000)
             {
   res.success = true;
                 res.message = "Successfully initiated mag recalibration.";
                 return true;
             }
-
-            break;
         }
     }
 }
@@ -888,27 +910,23 @@ bool InertialSenseROS::perform_multi_mag_cal_srv_callback(std_srvs::Trigger::Req
 
   is_comm_instance_t comm;
   uint8_t buffer[2048];
-  comm.buffer = buffer;
-  comm.bufferSize = sizeof(buffer);
-
-  is_comm_init(&comm);
-  uint8_t inByte;
+  is_comm_init(&comm, buffer, sizeof(buffer));
   serial_port_t* serialPort = IS_.GetSerialPort();
-  int count;
-  while ((count = serialPortReadCharTimeout(serialPort, &inByte, 20)) > 0)
+  uint8_t inByte;
+  int n;
+
+  while ((n = serialPortReadCharTimeout(serialPort, &inByte, 20)) > 0)
   {
-      switch (is_comm_parse(&comm, inByte))
+    // Search comm buffer for valid packets
+    if (is_comm_parse_byte(&comm, inByte) == _PTYPE_INERTIAL_SENSE_DATA && comm.dataHdr.id == DID_INS_1)
       {
-      case DID_INS_1:
-          ins_1_t* msg = (ins_1_t*)buffer;
+      ins_1_t* msg = (ins_1_t*)(comm.dataPtr + comm.dataHdr.offset);
           if (msg->insStatus & 0x00400000)
           {
   res.success = true;
-              res.message = "Successfully initiated mag recalibration";
+        res.message = "Successfully initiated mag recalibration.";
               return true;
           }
-
-          break;
       }
   }
 }
@@ -942,7 +960,7 @@ ros::Time InertialSenseROS::ros_time_from_week_and_tow(const uint32_t week, cons
 {
   ros::Time rostime(0, 0);
   //  If we have a GPS fix, then use it to set timestamp
-  if (GPS_towOffset_)
+  if (GPS_towOffset_ > 0.001)
   {
     uint64_t sec = UNIX_TO_GPS_OFFSET + floor(timeOfWeek) + week*7*24*3600;
     uint64_t nsec = (timeOfWeek - floor(timeOfWeek))*1e9;

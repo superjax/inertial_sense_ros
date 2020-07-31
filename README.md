@@ -70,6 +70,8 @@ Topics are enabled and disabled using parameters.  By default, only the `ins` to
     - information about RTK status
 - `RTK/rel` (inertial_sense/RTKRel)
     * Relative measurement between RTK base and rover
+
+!!! important RTK positioning or RTK compassing mode must be enabled to stream any raw GPS data.
 - `gps/obs` (inertial_sense/GNSSObservation)
     * Raw satellite observation (psuedorange and carrier phase)
 - `gps/eph` (inertial_sense/GNSSEphemeris)
