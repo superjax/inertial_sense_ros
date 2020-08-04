@@ -1,4 +1,4 @@
-# inertial_sense
+# Inertial Sense ROS
 
 
 A ROS wrapper for the InertialSense uINS3 RTK-GPS-INS and Dual GPS (GPS Compassing) sensor.
