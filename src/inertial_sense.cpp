@@ -65,6 +65,14 @@ void InertialSenseROS::configure_data_streams()
     SET_CALLBACK(DID_DUAL_IMU, dual_imu_t, IMU_callback,1);
   }
 
+  // Set up the IMU bias ROS stream
+  nh_private_.param<bool>("stream_INL2_states", INL2_states_.enabled, false);
+  if (INL2_states_.enabled)
+  {
+    INL2_states_.pub = nh_.advertise<inertial_sense::INL2States>("inl2_states", 1);
+    SET_CALLBACK(DID_INL2_STATES, inl2_states_t, INL2_states_callback);
+  }
+
   // Set up the GPS ROS stream - we always need GPS information for time sync, just don't always need to publish it
   nh_private_.param<bool>("stream_GPS", GPS_.enabled, true);
   if (GPS_.enabled)
@@ -409,6 +417,44 @@ void InertialSenseROS::INS2_callback(const ins_2_t * const msg)
 
   if (INS_.enabled)
     INS_.pub.publish(odom_msg);
+}
+
+
+void InertialSenseROS::INL2_states_callback(const inl2_states_t* const msg)
+{
+  inl2_states_msg.header.stamp = ros_time_from_tow(msg->timeOfWeek);
+  inl2_states_msg.header.frame_id = frame_id_;
+
+  inl2_states_msg.quatEcef.w = msg->qe2b[0];
+  inl2_states_msg.quatEcef.x = msg->qe2b[1];
+  inl2_states_msg.quatEcef.y = msg->qe2b[2];
+  inl2_states_msg.quatEcef.z = msg->qe2b[3];
+
+  inl2_states_msg.velEcef.x = msg->ve[0];
+  inl2_states_msg.velEcef.y = msg->ve[1];
+  inl2_states_msg.velEcef.z = msg->ve[2];
+
+  inl2_states_msg.posEcef.x = msg->ecef[0];
+  inl2_states_msg.posEcef.y = msg->ecef[1];
+  inl2_states_msg.posEcef.z = msg->ecef[2];
+
+  inl2_states_msg.gyroBias.x = msg->biasPqr[0];
+  inl2_states_msg.gyroBias.y = msg->biasPqr[1];
+  inl2_states_msg.gyroBias.z = msg->biasPqr[2];
+
+  inl2_states_msg.accelBias.x = msg->biasAcc[0];
+  inl2_states_msg.accelBias.y = msg->biasAcc[1];
+  inl2_states_msg.accelBias.z = msg->biasAcc[2];
+
+  inl2_states_msg.baroBias = msg->biasBaro;
+  inl2_states_msg.magDec = msg->magDec;
+  inl2_states_msg.magInc = msg->magInc;
+
+  // Use custom INL2 states message
+  if(INL2_states_.enabled)
+  {
+    INL2_states_.pub.publish(inl2_states_msg);
+  }
 }
 
 
