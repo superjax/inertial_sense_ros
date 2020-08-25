@@ -35,7 +35,7 @@ add_service_files(
   FILES
   FirmwareUpdate.srv
   refLLAUpdate.srv
-  )
+)
 
 generate_messages(
   DEPENDENCIES
