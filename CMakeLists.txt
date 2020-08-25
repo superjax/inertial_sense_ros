@@ -57,7 +57,7 @@ include_directories(include
 add_subdirectory(lib/inertial-sense-sdk)
 
 add_library(inertial_sense_ros
-        src/inertial_sense.cpp
+        src/inertial_sense_ros.cpp
 )
 target_link_libraries(inertial_sense_ros InertialSense ${catkin_LIBRARIES} pthread)
 target_include_directories(inertial_sense_ros PUBLIC include lib/inertial-sense-sdk/src)
