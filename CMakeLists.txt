@@ -61,7 +61,7 @@ add_library(inertial_sense_ros
 )
 target_link_libraries(inertial_sense_ros InertialSense ${catkin_LIBRARIES} pthread)
 target_include_directories(inertial_sense_ros PUBLIC include lib/inertial-sense-sdk/src)
-add_dependencies(inertial_sense_ros inertial_sense_generate_messages_cpp)
+add_dependencies(inertial_sense_ros inertial_sense_ros_generate_messages_cpp)
 
 add_executable(inertial_sense_node src/inertial_sense_node.cpp)
 target_link_libraries(inertial_sense_node inertial_sense_ros ${catkin_LIBRARIES})
