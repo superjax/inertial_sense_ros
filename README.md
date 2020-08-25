@@ -56,25 +56,25 @@ Topics are enabled and disabled using parameters.  By default, only the `ins` to
     - full 12-DOF measurements from onboard estimator (pose portion is from inertial to body, twist portion is in body frame)
 - `imu`(sensor_msgs/Imu)
     - Raw Imu measurements from IMU1 (NED frame)
-- `gps`(inertial_sense/GPS)
+- `gps`(inertial_sense_ros/GPS)
     - unfiltered GPS measurements from onboard GPS unit
-- `gps/info`(inertial_sense/GPSInfo)
+- `gps/info`(inertial_sense_ros/GPSInfo)
     - sattelite information and carrier noise ratio array for each sattelite
 - `mag` (sensor_msgs/MagneticField)
     - Raw magnetic field measurement from magnetometer 1
 - `baro` (sensor_msgs/FluidPressure)
     - Raw barometer measurements in kPa
-- `preint_imu` (inertial_sense/DThetaVel)
+- `preint_imu` (inertial_sense_ros/DThetaVel)
     - preintegrated coning and sculling integrals of IMU measurements
-- `RTK/info` (inertial_sense/RTKInfo)
+- `RTK/info` (inertial_sense_ros/RTKInfo)
     - information about RTK status
-- `RTK/rel` (inertial_sense/RTKRel)
+- `RTK/rel` (inertial_sense_ros/RTKRel)
     * Relative measurement between RTK base and rover
 
 !!! important RTK positioning or RTK compassing mode must be enabled to stream any raw GPS data.
-- `gps/obs` (inertial_sense/GNSSObservation)
+- `gps/obs` (inertial_sense_ros/GNSSObservation)
     * Raw satellite observation (psuedorange and carrier phase)
-- `gps/eph` (inertial_sense/GNSSEphemeris)
+- `gps/eph` (inertial_sense_ros/GNSSEphemeris)
     * Satellite Ephemeris for GPS and Galileo GNSS constellations
 - `gps/geph`
     * Satellite Ephemeris for Glonass GNSS constellation
@@ -174,7 +174,7 @@ Topics are enabled and disabled using parameters.  By default, only the `ins` to
   - Put INS into single axis magnetometer calibration mode.  This is typically used if the uINS is rigidly mounted to a heavy vehicle that will not undergo large roll or pitch motions, such as a car. After this call, the uINS must perform a single orbit around one axis (i.g. drive in a circle) to calibrate the magnetometer [more info](http://docs.inertialsense.com/user-manual/Setup_Integration/magnetometer_calibration/)
 - `multi_axis_mag_cal` (std_srvs/Trigger)
   - Put INS into multi axis magnetometer calibration mode.  This is typically used if the uINS is not mounted to a vehicle, or a lightweight vehicle such as a drone.  Simply rotate the uINS around all axes until the light on the uINS turns blue [more info](http://docs.inertialsense.com/user-manual/Setup_Integration/magnetometer_calibration/)
-- `firmware_update` (inertial_sense/FirmwareUpdate)
+- `firmware_update` (inertial_sense_ros/FirmwareUpdate)
   - Updates firmware to the `.hex` file supplied (use absolute filenames)
 * `set_refLLA_current` (std_srvs/Trigger)
   - Takes the current estimated position and sets it as the `refLLA`.  Use this to set a base position after a survey, or to zero out the `ins` topic.1
