@@ -1,4 +1,4 @@
-#include "inertial_sense.h"
+#include "inertial_sense_ros.h"
 #include <chrono>
 #include <stddef.h>
 #include <unistd.h>
@@ -68,15 +68,15 @@ void InertialSenseROS::configure_data_streams()
   // Set up the GPS ROS stream - we always need GPS information for time sync, just don't always need to publish it
   nh_private_.param<bool>("stream_GPS", GPS_.enabled, true);
   if (GPS_.enabled)
-      GPS_.pub = nh_.advertise<inertial_sense::GPS>("gps", 1);
+      GPS_.pub = nh_.advertise<inertial_sense_ros::GPS>("gps", 1);
 
   nh_private_.param<bool>("stream_GPS_raw", GPS_obs_.enabled, false);
   nh_private_.param<bool>("stream_GPS_raw", GPS_eph_.enabled, false);
   if (GPS_obs_.enabled)
   {
-    GPS_obs_.pub = nh_.advertise<inertial_sense::GNSSObsVec>("gps/obs", 50);
-    GPS_eph_.pub = nh_.advertise<inertial_sense::GNSSEphemeris>("gps/eph", 50);
-    GPS_eph_.pub2 = nh_.advertise<inertial_sense::GlonassEphemeris>("gps/geph", 50);
+    GPS_obs_.pub = nh_.advertise<inertial_sense_ros::GNSSObsVec>("gps/obs", 50);
+    GPS_eph_.pub = nh_.advertise<inertial_sense_ros::GNSSEphemeris>("gps/eph", 50);
+    GPS_eph_.pub2 = nh_.advertise<inertial_sense_ros::GlonassEphemeris>("gps/geph", 50);
     SET_CALLBACK(DID_GPS1_RAW, gps_raw_t, GPS_raw_callback,1);
     SET_CALLBACK(DID_GPS_BASE_RAW, gps_raw_t, GPS_raw_callback,1);
     SET_CALLBACK(DID_GPS2_RAW, gps_raw_t, GPS_raw_callback,1);
@@ -87,7 +87,7 @@ void InertialSenseROS::configure_data_streams()
   nh_private_.param<bool>("stream_GPS_info", GPS_info_.enabled, false);
   if (GPS_info_.enabled)
   {
-    GPS_info_.pub = nh_.advertise<inertial_sense::GPSInfo>("gps/info", 1);
+    GPS_info_.pub = nh_.advertise<inertial_sense_ros::GPSInfo>("gps/info", 1);
     SET_CALLBACK(DID_GPS1_SAT, gps_sat_t, GPS_info_callback,1);
   }
 
@@ -112,7 +112,7 @@ void InertialSenseROS::configure_data_streams()
   nh_private_.param<bool>("stream_preint_IMU", dt_vel_.enabled, false);
   if (dt_vel_.enabled)
   {
-    dt_vel_.pub = nh_.advertise<inertial_sense::PreIntIMU>("preint_imu", 1);
+    dt_vel_.pub = nh_.advertise<inertial_sense_ros::PreIntIMU>("preint_imu", 1);
     SET_CALLBACK(DID_PREINTEGRATED_IMU, preintegrated_imu_t, preint_IMU_callback,1);
   }
 
@@ -227,8 +227,8 @@ void InertialSenseROS::configure_rtk()
     SET_CALLBACK(DID_GPS2_RTK_CMP_MISC, gps_rtk_misc_t, RTK_Misc_callback,1);
     SET_CALLBACK(DID_GPS2_RTK_CMP_REL, gps_rtk_rel_t, RTK_Rel_callback,1);
     RTK_.enabled = true;
-    RTK_.pub = nh_.advertise<inertial_sense::RTKInfo>("RTK/info", 10);
-    RTK_.pub2 = nh_.advertise<inertial_sense::RTKRel>("RTK/rel", 10);
+    RTK_.pub = nh_.advertise<inertial_sense_ros::RTKInfo>("RTK/info", 10);
+    RTK_.pub2 = nh_.advertise<inertial_sense_ros::RTKRel>("RTK/rel", 10);
   }
 
   if (RTK_rover_radio_enable)
@@ -241,8 +241,8 @@ void InertialSenseROS::configure_rtk()
     SET_CALLBACK(DID_GPS1_RTK_POS_MISC, gps_rtk_misc_t, RTK_Misc_callback,1);
     SET_CALLBACK(DID_GPS1_RTK_POS_REL, gps_rtk_rel_t, RTK_Rel_callback,1);
     RTK_.enabled = true;
-    RTK_.pub = nh_.advertise<inertial_sense::RTKInfo>("RTK/info", 10);
-    RTK_.pub2 = nh_.advertise<inertial_sense::RTKRel>("RTK/rel", 10);
+    RTK_.pub = nh_.advertise<inertial_sense_ros::RTKInfo>("RTK/info", 10);
+    RTK_.pub2 = nh_.advertise<inertial_sense_ros::RTKRel>("RTK/rel", 10);
   }
   else if (RTK_rover)
   {
@@ -260,8 +260,8 @@ void InertialSenseROS::configure_rtk()
     SET_CALLBACK(DID_GPS1_RTK_POS_MISC, gps_rtk_misc_t, RTK_Misc_callback,1);
     SET_CALLBACK(DID_GPS1_RTK_POS_REL, gps_rtk_rel_t, RTK_Rel_callback,1);
     RTK_.enabled = true;
-    RTK_.pub = nh_.advertise<inertial_sense::RTKInfo>("RTK/info", 10);
-    RTK_.pub2 = nh_.advertise<inertial_sense::RTKRel>("RTK/rel", 10);
+    RTK_.pub = nh_.advertise<inertial_sense_ros::RTKInfo>("RTK/info", 10);
+    RTK_.pub2 = nh_.advertise<inertial_sense_ros::RTKRel>("RTK/rel", 10);
   }
   else if (RTK_base)
   {
@@ -552,7 +552,7 @@ void InertialSenseROS::baro_callback(const barometer_t * const msg)
 
 void InertialSenseROS::preint_IMU_callback(const preintegrated_imu_t * const msg)
 {
-  inertial_sense::PreIntIMU preintIMU_msg;
+  inertial_sense_ros::PreIntIMU preintIMU_msg;
   preintIMU_msg.header.stamp = ros_time_from_start_time(msg->time);
   preintIMU_msg.header.frame_id = frame_id_;
   preintIMU_msg.dtheta.x = msg->theta1[0];
@@ -572,7 +572,7 @@ void InertialSenseROS::RTK_Misc_callback(const gps_rtk_misc_t* const msg)
 {
   if (RTK_.enabled && GPS_towOffset_ > 0.001)
   {
-    inertial_sense::RTKInfo rtk_info;
+    inertial_sense_ros::RTKInfo rtk_info;
     rtk_info.header.stamp = ros_time_from_week_and_tow(GPS_week_, msg->timeOfWeekMs/1000.0);
     rtk_info.baseAntcount = msg->baseAntennaCount;
     rtk_info.baseEph = msg->baseBeidouEphemerisCount + msg->baseGalileoEphemerisCount + msg->baseGlonassEphemerisCount
@@ -597,7 +597,7 @@ void InertialSenseROS::RTK_Rel_callback(const gps_rtk_rel_t* const msg)
 {
   if (RTK_.enabled && GPS_towOffset_ > 0.001)
   {
-    inertial_sense::RTKRel rtk_rel;
+    inertial_sense_ros::RTKRel rtk_rel;
     rtk_rel.header.stamp = ros_time_from_week_and_tow(GPS_week_, msg->timeOfWeekMs/1000.0);
     rtk_rel.differential_age = msg->differentialAge;
     rtk_rel.ar_ratio = msg->arRatio;
@@ -645,7 +645,7 @@ void InertialSenseROS::GPS_obs_callback(const obsd_t * const msg, int nObs)
 
   for (int i = 0; i < nObs; i++)
   {
-      inertial_sense::GNSSObservation obs;
+      inertial_sense_ros::GNSSObservation obs;
       obs.header.stamp = ros_time_from_gtime(msg[i].time.time, msg[i].time.sec);
       obs.time.time = msg[i].time.time;
       obs.time.sec = msg[i].time.sec;
@@ -682,7 +682,7 @@ void InertialSenseROS::GPS_obs_bundle_timer_callback(const ros::TimerEvent &e)
 
 void InertialSenseROS::GPS_eph_callback(const eph_t * const msg)
 {
-  inertial_sense::GNSSEphemeris eph;
+  inertial_sense_ros::GNSSEphemeris eph;
   eph.sat = msg->sat;
   eph.iode = msg->iode;
   eph.iodc = msg->iodc;
@@ -728,7 +728,7 @@ void InertialSenseROS::GPS_eph_callback(const eph_t * const msg)
 
 void InertialSenseROS::GPS_geph_callback(const geph_t * const msg)
 {
-  inertial_sense::GlonassEphemeris geph;
+  inertial_sense_ros::GlonassEphemeris geph;
   geph.sat = msg->sat;
   geph.iode = msg->iode;
   geph.frq = msg->frq;
@@ -847,7 +847,7 @@ bool InertialSenseROS::set_current_position_as_refLLA(std_srvs::Trigger::Request
     
   }
 
-bool InertialSenseROS::set_refLLA_to_value(inertial_sense::refLLAUpdate::Request &req, inertial_sense::refLLAUpdate::Response &res)
+bool InertialSenseROS::set_refLLA_to_value(inertial_sense_ros::refLLAUpdate::Request &req, inertial_sense_ros::refLLAUpdate::Response &res)
 {
   IS_.SendData(DID_FLASH_CONFIG, reinterpret_cast<uint8_t*>(&req.lla), sizeof(req.lla), offsetof(nvm_flash_cfg_t, refLla));
 
@@ -944,7 +944,7 @@ void InertialSenseROS::reset_device()
   sleep(1);
 }
 
-bool InertialSenseROS::update_firmware_srv_callback(inertial_sense::FirmwareUpdate::Request &req, inertial_sense::FirmwareUpdate::Response &res)
+bool InertialSenseROS::update_firmware_srv_callback(inertial_sense_ros::FirmwareUpdate::Request &req, inertial_sense_ros::FirmwareUpdate::Response &res)
 {
   IS_.Close();
   vector<InertialSense::bootloader_result_t> results = IS_.BootloadFile("*", req.filename, 921600);

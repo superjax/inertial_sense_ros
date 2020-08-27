@@ -14,17 +14,17 @@
 #include "sensor_msgs/MagneticField.h"
 #include "sensor_msgs/FluidPressure.h"
 #include "sensor_msgs/JointState.h"
-#include "inertial_sense/GPS.h"
-#include "inertial_sense/GPSInfo.h"
-#include "inertial_sense/PreIntIMU.h"
-#include "inertial_sense/FirmwareUpdate.h"
-#include "inertial_sense/refLLAUpdate.h"
-#include "inertial_sense/RTKRel.h"
-#include "inertial_sense/RTKInfo.h"
-#include "inertial_sense/GNSSEphemeris.h"
-#include "inertial_sense/GlonassEphemeris.h"
-#include "inertial_sense/GNSSObservation.h"
-#include "inertial_sense/GNSSObsVec.h"
+#include "inertial_sense_ros/GPS.h"
+#include "inertial_sense_ros/GPSInfo.h"
+#include "inertial_sense_ros/PreIntIMU.h"
+#include "inertial_sense_ros/FirmwareUpdate.h"
+#include "inertial_sense_ros/refLLAUpdate.h"
+#include "inertial_sense_ros/RTKRel.h"
+#include "inertial_sense_ros/RTKInfo.h"
+#include "inertial_sense_ros/GNSSEphemeris.h"
+#include "inertial_sense_ros/GlonassEphemeris.h"
+#include "inertial_sense_ros/GNSSObservation.h"
+#include "inertial_sense_ros/GNSSObsVec.h"
 #include "nav_msgs/Odometry.h"
 #include "std_srvs/Trigger.h"
 #include "std_msgs/Header.h"
@@ -121,7 +121,7 @@ public:
   void GPS_eph_callback(const eph_t* const msg);
   void GPS_geph_callback(const geph_t* const msg);
   void GPS_obs_bundle_timer_callback(const ros::TimerEvent& e);
-  inertial_sense::GNSSObsVec obs_Vec_;
+  inertial_sense_ros::GNSSObsVec obs_Vec_;
   ros::Timer obs_bundle_timer_;
   ros::Time last_obs_time_;
 
@@ -151,10 +151,10 @@ public:
   ros::ServiceServer refLLA_set_current_srv_;
   ros::ServiceServer refLLA_set_value_srv_;
   bool set_current_position_as_refLLA(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response & res);
-  bool set_refLLA_to_value(inertial_sense::refLLAUpdate::Request &req, inertial_sense::refLLAUpdate::Response &res);
+  bool set_refLLA_to_value(inertial_sense_ros::refLLAUpdate::Request &req, inertial_sense_ros::refLLAUpdate::Response &res);
   bool perform_mag_cal_srv_callback(std_srvs::Trigger::Request & req, std_srvs::Trigger::Response & res);
   bool perform_multi_mag_cal_srv_callback(std_srvs::Trigger::Request & req, std_srvs::Trigger::Response & res);
-  bool update_firmware_srv_callback(inertial_sense::FirmwareUpdate::Request & req, inertial_sense::FirmwareUpdate::Response & res);
+  bool update_firmware_srv_callback(inertial_sense_ros::FirmwareUpdate::Request & req, inertial_sense_ros::FirmwareUpdate::Response & res);
 
   void publishGPS();
 
@@ -210,9 +210,9 @@ public:
   double ecef_[3];
   sensor_msgs::Imu imu1_msg, imu2_msg;
   nav_msgs::Odometry odom_msg;
-  inertial_sense::GPS gps_msg; 
+  inertial_sense_ros::GPS gps_msg; 
   geometry_msgs::Vector3Stamped gps_velEcef;
-  inertial_sense::GPSInfo gps_info_msg;
+  inertial_sense_ros::GPSInfo gps_info_msg;
 
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;

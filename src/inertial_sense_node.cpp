@@ -1,4 +1,4 @@
-#include "inertial_sense.h"
+#include "inertial_sense_ros.h"
 
 int main(int argc, char**argv)
 {
