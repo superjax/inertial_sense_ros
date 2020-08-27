@@ -202,7 +202,7 @@ void InertialSenseROS::configure_parameters()
 void InertialSenseROS::configure_rtk()
 {
   bool RTK_rover, RTK_rover_radio_enable, RTK_base, dual_GNSS;
-	std::string gps_type;
+  std::string gps_type;
   nh_private_.param<std::string>("gps_type", gps_type, "M8");
   nh_private_.param<bool>("RTK_rover", RTK_rover, false);
   nh_private_.param<bool>("RTK_rover_radio_enable", RTK_rover_radio_enable, false);
