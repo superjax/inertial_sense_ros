@@ -25,6 +25,7 @@
 #include "inertial_sense_ros/GlonassEphemeris.h"
 #include "inertial_sense_ros/GNSSObservation.h"
 #include "inertial_sense_ros/GNSSObsVec.h"
+#include "inertial_sense_ros/INL2States.h"
 #include "nav_msgs/Odometry.h"
 #include "std_srvs/Trigger.h"
 #include "std_msgs/Header.h"
@@ -98,6 +99,8 @@ public:
   void INS2_callback(const ins_2_t* const msg);
 //  void INS_variance_callback(const inl2_variance_t* const msg);
 
+  ros_stream_t INL2_states_;
+  void INL2_states_callback(const inl2_states_t* const msg);
   tf::TransformBroadcaster br;
   bool publishTf;
   tf::Transform transform;
@@ -213,6 +216,7 @@ public:
   inertial_sense_ros::GPS gps_msg; 
   geometry_msgs::Vector3Stamped gps_velEcef;
   inertial_sense_ros::GPSInfo gps_info_msg;
+  inertial_sense_ros::INL2States inl2_states_msg;
 
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
