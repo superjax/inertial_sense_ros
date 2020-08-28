@@ -210,9 +210,12 @@ void InertialSenseROS::configure_parameters()
 void InertialSenseROS::configure_rtk()
 {
   bool RTK_rover, RTK_rover_radio_enable, RTK_base, dual_GNSS;
+  std::string gps_type;
+  nh_private_.param<std::string>("gps_type", gps_type, "M8");
   nh_private_.param<bool>("RTK_rover", RTK_rover, false);
   nh_private_.param<bool>("RTK_rover_radio_enable", RTK_rover_radio_enable, false);
   nh_private_.param<bool>("RTK_base", RTK_base, false);
+  nh_private_.param<bool>("dual_GNSS", dual_GNSS, false);
   nh_private_.param<bool>("dual_GNSS", dual_GNSS, false);
   std::string RTK_server_IP, RTK_correction_type;
   int RTK_server_port;
@@ -241,7 +244,7 @@ void InertialSenseROS::configure_rtk()
     RTK_base = false;
     ROS_INFO("InertialSense: Configured as RTK Rover with radio enabled");
     RTK_state_ = RTK_ROVER;
-    RTKCfgBits |= RTK_CFG_BITS_ROVER_MODE_RTK_POSITIONING_F9P;
+    RTKCfgBits |= (gps_type=="F9P" ? RTK_CFG_BITS_ROVER_MODE_RTK_POSITIONING_F9P : RTK_CFG_BITS_ROVER_MODE_RTK_POSITIONING);
 
     SET_CALLBACK(DID_GPS1_RTK_POS_MISC, gps_rtk_misc_t, RTK_Misc_callback,1);
     SET_CALLBACK(DID_GPS1_RTK_POS_REL, gps_rtk_rel_t, RTK_Rel_callback,1);
@@ -255,7 +258,7 @@ void InertialSenseROS::configure_rtk()
     std::string RTK_connection =  RTK_correction_type + ":" + RTK_server_IP + ":" + std::to_string(RTK_server_port);
     ROS_INFO("InertialSense: Configured as RTK Rover");
     RTK_state_ = RTK_ROVER;
-    RTKCfgBits |= RTK_CFG_BITS_ROVER_MODE_RTK_POSITIONING_F9P;
+    RTKCfgBits |= (gps_type=="F9P" ? RTK_CFG_BITS_ROVER_MODE_RTK_POSITIONING_F9P : RTK_CFG_BITS_ROVER_MODE_RTK_POSITIONING);
 
     if (IS_.OpenServerConnection(RTK_connection))
       ROS_INFO_STREAM("Successfully connected to " << RTK_connection << " RTK server");
