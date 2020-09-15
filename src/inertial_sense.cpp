@@ -70,7 +70,7 @@ void InertialSenseROS::configure_data_streams()
   if (INL2_states_.enabled)
   {
     INL2_states_.pub = nh_.advertise<inertial_sense::INL2States>("inl2_states", 1);
-    SET_CALLBACK(DID_INL2_STATES, inl2_states_t, INL2_states_callback);
+    SET_CALLBACK(DID_INL2_STATES, inl2_states_t, INL2_states_callback,1);
   }
 
   // Set up the GPS ROS stream - we always need GPS information for time sync, just don't always need to publish it
