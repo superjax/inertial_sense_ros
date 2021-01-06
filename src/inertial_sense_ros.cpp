@@ -527,7 +527,7 @@ void InertialSenseROS::GPS_vel_callback(const gps_vel_t * const msg)
 
 void InertialSenseROS::publishGPS()
 {
-    if ((gps_velEcef.header.stamp - gps_msg.header.stamp).toSec() < 2e-3)
+  if ((gps_velEcef.header.stamp - gps_msg.header.stamp).toSec() < 2e-3)
 	{
 		gps_msg.velEcef = gps_velEcef.vector;
 		GPS_.pub.publish(gps_msg);
@@ -547,10 +547,10 @@ void InertialSenseROS::strobe_in_time_callback(const strobe_in_time_t * const ms
   
   if (GPS_towOffset_ > 0.001)
   {
-  std_msgs::Header strobe_msg;
-  strobe_msg.stamp = ros_time_from_week_and_tow(msg->week, msg->timeOfWeekMs * 1e-3);
-  strobe_pub_.publish(strobe_msg);
-}
+    std_msgs::Header strobe_msg;
+    strobe_msg.stamp = ros_time_from_week_and_tow(msg->week, msg->timeOfWeekMs * 1e-3);
+    strobe_pub_.publish(strobe_msg);
+  }
 }
 
 
